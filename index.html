@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini Code Playground</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<style>
+  html, body { height: 100%; margin: 0; overflow: hidden; }
+  body.dark { background-color: #0d1117; }
+  #app { height: 100vh; display: flex; flex-direction: column; }
+
+  /* ===== Header ===== */
+  #header {
+    transition: background-color .2s, border-color .2s;
+  }
+  body.dark #header {
+    background-color: #161b22 !important;
+    border-color: #30363d !important;
+  }
+  body.dark #header h1 { color: #e6edf3; }
+
+  /* ===== Tabs ===== */
+  .tab-btn.active {
+    background-color: #ffffff;
+    border-bottom: 2px solid #2563eb;
+    color: #2563eb;
+    font-weight: 600;
+  }
+  .tab-btn { color: #57606a; }
+  body.dark .tab-btn { color: #8b949e; }
+  body.dark .tab-btn.active {
+    background-color: #0d1117;
+    color: #58a6ff;
+    border-bottom: 2px solid #58a6ff;
+  }
+  body.dark .tab-bar { background-color: #161b22 !important; border-color: #30363d !important; }
+
+  /* ===== Panels ===== */
+  #splitContainer { display: flex; flex: 1; min-height: 0; }
+  #leftPanel, #rightPanel {
+    height: 100%; display: flex; flex-direction: column; min-width: 100px;
+  }
+  #leftPanel { width: 50%; background: #fff; }
+  #rightPanel { width: calc(50% - 6px); background: #fff; }
+  body.dark #leftPanel, body.dark #rightPanel { background-color: #0d1117; }
+  body.dark .panel-title { background-color: #161b22 !important; color: #8b949e !important; border-color: #30363d !important; }
+
+  #splitter {
+    width: 6px; cursor: col-resize; background-color: #d0d7de; flex-shrink: 0;
+  }
+  #splitter:hover { background-color: #2563eb; }
+  body.dark #splitter { background-color: #30363d; }
+
+  #editorContainer { flex: 1; min-height: 0; position: relative; }
+
+  #outputFrame { flex: 1; width: 100%; border: none; background: white; }
+
+  /* Drag & drop overlay */
+  #dropOverlay {
+    position: absolute; inset: 0;
+    background: rgba(37, 99, 235, 0.12);
+    border: 3px dashed #2563eb;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #2563eb;
+    font-size: 1.1rem;
+    z-index: 50;
+    pointer-events: none;
+  }
+  #editorContainer.drag-active #dropOverlay { display: flex; }
+
+  /* Responsive: stack vertically on small screens */
+  @media (max-width: 768px) {
+    #splitContainer { flex-direction: column; }
+    #leftPanel, #rightPanel { width: 100% !important; height: 50%; }
+    #splitter { width: 100%; height: 6px; cursor: row-resize; }
+  }
+
+  /* ===== Modal ===== */
+  #settingsModal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+  }
+  #settingsModal.open { display: flex; }
+  #settingsBox {
+    background: white; border-radius: 10px; width: 360px; max-width: 90vw;
+    padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  body.dark #settingsBox { background-color: #161b22; color: #e6edf3; }
+  body.dark #settingsBox select, body.dark #settingsBox input {
+    background-color: #0d1117; color: #e6edf3; border-color: #30363d;
+  }
+
+  .icon-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #24292f; color: white; padding: 8px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s;
+    z-index: 200;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body class="bg-gray-100">
+
+<div id="app">
+  <!-- Header -->
+  <div id="header" class="bg-white border-b border-gray-300 px-4 py-2 flex items-center justify-between shadow-sm flex-wrap gap-2">
+    <h1 class="text-lg font-bold text-gray-800">🧪 Mini Code Playground</h1>
+    <div class="flex items-center gap-2 flex-wrap">
+      <button id="uploadBtn" class="icon-btn bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
+        📁 Upload
+      </button>
+      <input type="file" id="fileInput" accept=".html,.htm,.css,.js" multiple class="hidden" />
+
+      <div class="relative inline-block">
+        <button id="downloadBtn" class="icon-btn bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
+          ⬇ Download
+        </button>
+        <div id="downloadMenu" class="hidden absolute right-0 mt-1 w-40 bg-white border border-gray-300 rounded-md shadow-lg text-sm z-50">
+          <button data-lang="html" class="download-item w-full text-left px-3 py-2 hover:bg-gray-100">index.html</button>
+          <button data-lang="css" class="download-item w-full text-left px-3 py-2 hover:bg-gray-100">style.css</button>
+          <button data-lang="javascript" class="download-item w-full text-left px-3 py-2 hover:bg-gray-100">script.js</button>
+        </div>
+      </div>
+
+      <button id="saveBtn" class="icon-btn bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
+        💾 Save
+      </button>
+
+      <button id="settingsBtn" class="icon-btn bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
+        ⚙ Settings
+      </button>
+
+      <button id="runBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-1.5 rounded-md shadow-sm transition">
+        ▶ Run
+      </button>
+      <label class="flex items-center gap-1 text-sm text-gray-600 select-none">
+        <input type="checkbox" id="autoRunToggle" class="accent-blue-600" checked />
+        Auto-run
+      </label>
+    </div>
+  </div>
+
+  <!-- Main split container -->
+  <div id="splitContainer">
+    <!-- Left: Editor Panel -->
+    <div id="leftPanel">
+      <div class="tab-bar flex border-b border-gray-300 bg-gray-50">
+        <button class="tab-btn active px-4 py-2 text-sm border-r border-gray-200" data-lang="html">HTML</button>
+        <button class="tab-btn px-4 py-2 text-sm border-r border-gray-200" data-lang="css">CSS</button>
+        <button class="tab-btn px-4 py-2 text-sm border-r border-gray-200" data-lang="javascript">JavaScript</button>
+      </div>
+      <div id="editorContainer">
+        <div id="dropOverlay">⬇ Lepaskan file di sini untuk memuatnya ⬇</div>
+      </div>
+    </div>
+
+    <!-- Splitter -->
+    <div id="splitter"></div>
+
+    <!-- Right: Output Panel -->
+    <div id="rightPanel">
+      <div class="panel-title border-b border-gray-300 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-600">
+        Output Preview
+      </div>
+      <iframe id="outputFrame" sandbox="allow-scripts allow-modals allow-forms allow-popups"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settingsModal">
+  <div id="settingsBox">
+    <h2 class="text-lg font-bold mb-4">⚙ Pengaturan</h2>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Tema</label>
+      <select id="themeSelect" class="w-full border rounded-md px-2 py-1.5 text-sm">
+        <option value="light">☀ Light</option>
+        <option value="dark">🌙 Dark</option>
+      </select>
+    </div>
+
+    <div class="mb-4">
+      <label class="block text-sm font-medium mb-1">Ukuran Tab (spasi)</label>
+      <select id="tabSizeSelect" class="w-full border rounded-md px-2 py-1.5 text-sm">
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="8">8</option>
+      </select>
+    </div>
+
+    <div class="flex justify-end gap-2 mt-6">
+      <button id="closeSettingsBtn" class="px-4 py-1.5 text-sm rounded-md bg-gray-200 hover:bg-gray-300">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Monaco Editor Loader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+<!-- Emmet support for Monaco (auto-tag & abbreviation expansion) -->
+<script src="https://unpkg.com/emmet-monaco-es@5.4.0/dist/emmet-monaco.min.js"></script>
+
+<script>
+  require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+
+  const STORAGE_KEY = 'mini_playground_code_v1';
+  const SETTINGS_KEY = 'mini_playground_settings_v1';
+
+  const defaultCode = {
+    html: `<h1>Hello, Playground!</h1>
+<p>Tempel kode HTML kamu di sini, atau ketik "div.box>ul>li*3" lalu tekan Tab untuk auto-expand (Emmet).</p>`,
+    css: `body {
+  font-family: sans-serif;
+  background: #f9fafb;
+  color: #24292f;
+  padding: 20px;
+}
+
+h1 {
+  color: #2563eb;
+}`,
+    javascript: `console.log("Playground siap!");
+
+document.querySelector('h1').addEventListener('click', () => {
+  alert('Kamu klik judulnya!');
+});`
+  };
+
+  let editor;
+  let currentLang = 'html';
+  let codeStore = { ...defaultCode };
+  let settings = { theme: 'light', tabSize: 2 };
+
+  // ---------- Load saved data ----------
+  function loadFromStorage() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        codeStore = { ...defaultCode, ...parsed };
+      }
+    } catch (e) {
+      console.warn('Gagal memuat kode tersimpan:', e);
+    }
+    try {
+      const savedSettings = localStorage.getItem(SETTINGS_KEY);
+      if (savedSettings) {
+        settings = { ...settings, ...JSON.parse(savedSettings) };
+      }
+    } catch (e) {
+      console.warn('Gagal memuat pengaturan:', e);
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._timer);
+    showToast._timer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  function saveToStorage(manual) {
+    try {
+      codeStore[currentLang] = editor ? editor.getValue() : codeStore[currentLang];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(codeStore));
+      if (manual) showToast('✅ Kode berhasil disimpan ke localStorage');
+    } catch (e) {
+      if (e && e.name === 'QuotaExceededError') {
+        showToast('⚠ Penyimpanan penuh! Kode tidak bisa disimpan.');
+      } else {
+        showToast('⚠ Gagal menyimpan kode.');
+      }
+      console.error(e);
+    }
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (e) {
+      console.warn('Gagal menyimpan pengaturan:', e);
+    }
+  }
+
+  loadFromStorage();
+
+  // ---------- Apply theme to page ----------
+  function applyPageTheme() {
+    document.body.classList.toggle('dark', settings.theme === 'dark');
+    if (window.monaco) {
+      monaco.editor.setTheme(settings.theme === 'dark' ? 'github-dark' : 'github-light');
+    }
+  }
+
+  require(['vs/editor/editor.main'], function () {
+
+    // GitHub Light theme
+    monaco.editor.defineTheme('github-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '6a737d', fontStyle: 'italic' },
+        { token: 'keyword', foreground: 'd73a49' },
+        { token: 'string', foreground: '032f62' },
+        { token: 'number', foreground: '005cc5' },
+        { token: 'tag', foreground: '22863a' },
+        { token: 'attribute.name', foreground: '6f42c1' },
+        { token: 'delimiter', foreground: '24292e' },
+        { token: 'identifier', foreground: '24292e' },
+      ],
+      colors: {
+        'editor.background': '#ffffff',
+        'editor.foreground': '#24292e',
+        'editorLineNumber.foreground': '#a0a5aa',
+        'editorCursor.foreground': '#24292e',
+        'editor.lineHighlightBackground': '#f6f8fa',
+        'editorSuggestWidget.background': '#ffffff',
+        'editorSuggestWidget.border': '#d0d7de',
+        'editorSuggestWidget.selectedBackground': '#0366d625',
+      }
+    });
+
+    // GitHub Dark theme
+    monaco.editor.defineTheme('github-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
+        { token: 'keyword', foreground: 'ff7b72' },
+        { token: 'string', foreground: 'a5d6ff' },
+        { token: 'number', foreground: '79c0ff' },
+        { token: 'tag', foreground: '7ee787' },
+        { token: 'attribute.name', foreground: 'd2a8ff' },
+        { token: 'delimiter', foreground: 'c9d1d9' },
+        { token: 'identifier', foreground: 'c9d1d9' },
+      ],
+      colors: {
+        'editor.background': '#0d1117',
+        'editor.foreground': '#c9d1d9',
+        'editorLineNumber.foreground': '#484f58',
+        'editorCursor.foreground': '#c9d1d9',
+        'editor.lineHighlightBackground': '#161b22',
+        'editorSuggestWidget.background': '#161b22',
+        'editorSuggestWidget.border': '#30363d',
+        'editorSuggestWidget.selectedBackground': '#1f6feb33',
+      }
+    });
+
+    editor = monaco.editor.create(document.getElementById('editorContainer'), {
+      value: codeStore.html,
+      language: 'html',
+      theme: settings.theme === 'dark' ? 'github-dark' : 'github-light',
+      automaticLayout: true,
+      fontSize: 14,
+      minimap: { enabled: false },
+      quickSuggestions: true,
+      suggestOnTriggerCharacters: true,
+      wordBasedSuggestions: true,
+      tabSize: settings.tabSize,
+      autoClosingTags: true,
+      autoClosingBrackets: 'always',
+      autoClosingQuotes: 'always',
+      autoSurround: 'languageDefined',
+    });
+
+    // Enable Emmet (auto-tag expansion, e.g. "ul>li*3" + Tab) for HTML & CSS
+    if (window.emmetMonaco) {
+      window.emmetMonaco.emmetHTML(monaco);
+      window.emmetMonaco.emmetCSS(monaco);
+    }
+
+    applyPageTheme();
+
+    editor.onDidChangeModelContent(() => {
+      codeStore[currentLang] = editor.getValue();
+      if ($('#autoRunToggle').is(':checked')) debounceRun();
+      debounceAutoSave();
+    });
+
+    // Restore active model for other langs lazily created on tab switch
+    runCode();
+
+    // Drag & drop support directly onto the editor
+    setupDragDrop();
+  });
+
+  // ---------- Debounced run & autosave ----------
+  let runTimer;
+  function debounceRun() {
+    clearTimeout(runTimer);
+    runTimer = setTimeout(runCode, 600);
+  }
+
+  let saveTimer;
+  function debounceAutoSave() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => saveToStorage(false), 1000);
+  }
+
+  // ---------- Tab switching ----------
+  $('.tab-btn').on('click', function () {
+    const lang = $(this).data('lang');
+    if (lang === currentLang) return;
+
+    codeStore[currentLang] = editor.getValue();
+    currentLang = lang;
+    $('.tab-btn').removeClass('active');
+    $(this).addClass('active');
+
+    const model = monaco.editor.createModel(codeStore[lang], lang);
+    editor.setModel(model);
+  });
+
+  // ---------- Run ----------
+  $('#runBtn').on('click', runCode);
+
+  function runCode() {
+    if (editor) codeStore[currentLang] = editor.getValue();
+
+    const combined = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>${codeStore.css}</style>
+</head>
+<body>
+${codeStore.html}
+<script>
+try {
+${codeStore.javascript}
+} catch (e) {
+  document.body.innerHTML += '<pre style="color:red;background:#ffeef0;padding:10px;border-radius:6px;margin-top:10px;">Error: ' + e.message + '</pre>';
+}
+<\/script>
+</body>
+</html>`;
+
+    document.getElementById('outputFrame').srcdoc = combined;
+  }
+
+  // ---------- Save button ----------
+  $('#saveBtn').on('click', () => saveToStorage(true));
+
+  // ---------- Download per file ----------
+  $('#downloadBtn').on('click', (e) => {
+    e.stopPropagation();
+    $('#downloadMenu').toggleClass('hidden');
+  });
+  $(document).on('click', (e) => {
+    if (!$(e.target).closest('#downloadBtn, #downloadMenu').length) {
+      $('#downloadMenu').addClass('hidden');
+    }
+  });
+
+  const fileMeta = {
+    html: { filename: 'index.html', mime: 'text/html' },
+    css: { filename: 'style.css', mime: 'text/css' },
+    javascript: { filename: 'script.js', mime: 'application/javascript' },
+  };
+
+  $('.download-item').on('click', function () {
+    const lang = $(this).data('lang');
+    if (editor && lang === currentLang) codeStore[lang] = editor.getValue();
+    const meta = fileMeta[lang];
+    const blob = new Blob([codeStore[lang] || ''], { type: meta.mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = meta.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    $('#downloadMenu').addClass('hidden');
+    showToast(`⬇ ${meta.filename} diunduh`);
+  });
+
+  // ---------- Upload via button ----------
+  $('#uploadBtn').on('click', () => $('#fileInput').trigger('click'));
+  $('#fileInput').on('change', function () {
+    handleFiles(this.files);
+    this.value = '';
+  });
+
+  function extToLang(name) {
+    const lower = name.toLowerCase();
+    if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
+    if (lower.endsWith('.css')) return 'css';
+    if (lower.endsWith('.js')) return 'javascript';
+    return null;
+  }
+
+  function handleFiles(fileList) {
+    const files = Array.from(fileList);
+    if (!files.length) return;
+
+    let loadedCount = 0;
+    files.forEach((file) => {
+      const lang = extToLang(file.name);
+      if (!lang) {
+        showToast(`⚠ Tipe file tidak didukung: ${file.name}`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        codeStore[lang] = ev.target.result;
+        if (lang === currentLang && editor) {
+          editor.setValue(codeStore[lang]);
+        }
+        loadedCount++;
+        showToast(`📁 ${file.name} dimuat ke tab ${lang.toUpperCase()}`);
+        if ($('#autoRunToggle').is(':checked')) debounceRun();
+        debounceAutoSave();
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // ---------- Drag & drop onto editor ----------
+  function setupDragDrop() {
+    const dropZone = document.getElementById('editorContainer');
+
+    ['dragenter', 'dragover'].forEach((evt) => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropZone.classList.add('drag-active');
+      });
+    });
+
+    ['dragleave', 'drop'].forEach((evt) => {
+      dropZone.addEventListener(evt, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (evt === 'dragleave' && e.target !== dropZone) return;
+        dropZone.classList.remove('drag-active');
+      });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length) {
+        handleFiles(dt.files);
+      }
+    });
+  }
+
+  // ---------- Settings modal ----------
+  $('#settingsBtn').on('click', () => {
+    $('#themeSelect').val(settings.theme);
+    $('#tabSizeSelect').val(String(settings.tabSize));
+    $('#settingsModal').addClass('open');
+  });
+  $('#closeSettingsBtn').on('click', () => $('#settingsModal').removeClass('open'));
+  $('#settingsModal').on('click', function (e) {
+    if (e.target === this) $(this).removeClass('open');
+  });
+
+  $('#themeSelect').on('change', function () {
+    settings.theme = this.value;
+    applyPageTheme();
+    saveSettings();
+  });
+
+  $('#tabSizeSelect').on('change', function () {
+    settings.tabSize = parseInt(this.value, 10);
+    if (editor) editor.updateOptions({ tabSize: settings.tabSize });
+    saveSettings();
+  });
+
+  // ---------- Resizable splitter ----------
+  const splitter = document.getElementById('splitter');
+  const leftPanel = document.getElementById('leftPanel');
+  const rightPanel = document.getElementById('rightPanel');
+  const container = document.getElementById('splitContainer');
+  let isDragging = false;
+
+  splitter.addEventListener('mousedown', () => {
+    isDragging = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const isVertical = window.innerWidth <= 768;
+    const rect = container.getBoundingClientRect();
+
+    if (!isVertical) {
+      let newLeftWidth = e.clientX - rect.left;
+      const minWidth = 150;
+      const maxWidth = rect.width - minWidth - 6;
+      newLeftWidth = Math.max(minWidth, Math.min(newLeftWidth, maxWidth));
+      leftPanel.style.width = newLeftWidth + 'px';
+      rightPanel.style.width = (rect.width - newLeftWidth - 6) + 'px';
+    } else {
+      let newTopHeight = e.clientY - rect.top;
+      const minHeight = 100;
+      const maxHeight = rect.height - minHeight - 6;
+      newTopHeight = Math.max(minHeight, Math.min(newTopHeight, maxHeight));
+      leftPanel.style.height = newTopHeight + 'px';
+      rightPanel.style.height = (rect.height - newTopHeight - 6) + 'px';
+    }
+    if (editor) editor.layout();
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      if (editor) editor.layout();
+    }
+  });
+
+  splitter.addEventListener('touchstart', () => { isDragging = true; });
+  document.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    const rect = container.getBoundingClientRect();
+    const isVertical = window.innerWidth <= 768;
+
+    if (!isVertical) {
+      let newLeftWidth = touch.clientX - rect.left;
+      newLeftWidth = Math.max(150, Math.min(newLeftWidth, rect.width - 156));
+      leftPanel.style.width = newLeftWidth + 'px';
+      rightPanel.style.width = (rect.width - newLeftWidth - 6) + 'px';
+    } else {
+      let newTopHeight = touch.clientY - rect.top;
+      newTopHeight = Math.max(100, Math.min(newTopHeight, rect.height - 106));
+      leftPanel.style.height = newTopHeight + 'px';
+      rightPanel.style.height = (rect.height - newTopHeight - 6) + 'px';
+    }
+    if (editor) editor.layout();
+  });
+  document.addEventListener('touchend', () => { isDragging = false; });
+
+  // Apply theme immediately on load (before Monaco finishes loading)
+  applyPageTheme();
+
+  // Warn before unload if there might be unsaved autosave pending
+  window.addEventListener('beforeunload', () => {
+    saveToStorage(false);
+  });
+</script>
+
+</body>
+</html>
