@@ -106,6 +106,62 @@
       border-bottom: 2px solid var(--accent);
     }
 
+    #tabs {
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      scrollbar-width: thin;
+    }
+
+    .code-tab {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+
+    .tab-close {
+      font-size: 10px;
+      color: var(--text-dim);
+      opacity: .55;
+      padding: 2px;
+      border-radius: 4px;
+    }
+
+    .tab-close:hover {
+      opacity: 1;
+      color: var(--danger);
+      background: rgba(248, 81, 73, .12);
+    }
+
+    .tab-rename-input {
+      width: 118px;
+      max-width: 40vw;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+      outline: none;
+    }
+
+    #addTabBtn {
+      padding: 9px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-dim);
+      border-right: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+
+    #addTabBtn:hover {
+      color: var(--accent);
+      background: var(--panel-alt);
+    }
+
     #splitter {
       width: 6px;
       flex: 0 0 6px;
@@ -486,6 +542,9 @@
           <button class="code-tab active" data-lang="html">HTML</button>
           <button class="code-tab" data-lang="css">CSS</button>
           <button class="code-tab" data-lang="javascript">JS</button>
+          <button id="addTabBtn" title="Tambah file virtual baru">
+            <i class="fa-solid fa-plus"></i>
+          </button>
         </div>
         <div id="editorContainer" class="flex-1" style="min-height:0;"></div>
         <div id="dropOverlay" class="drop-overlay hidden">Lepaskan file di sini untuk mengunggah</div>
@@ -604,6 +663,17 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
   <script src="https://unpkg.com/emmet-monaco-es/dist/emmet-monaco.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/codeflask/build/codeflask.min.js"></script>
+  <style>
+    /* ---------- CodeFlask (mobile engine) — selaraskan dengan tema Monaco ---------- */
+    #editorContainer .codeflask { height: 100%; }
+    #editorContainer .codeflask__textarea,
+    #editorContainer .codeflask__code,
+    #editorContainer .codeflask__pre { font-size: 13px; }
+    #editorContainer .codeflask { background: var(--bg) !important; }
+    #editorContainer .codeflask__textarea { color: var(--text) !important; caret-color: var(--accent); }
+    #editorContainer .codeflask__lines { background: var(--panel) !important; color: var(--text-dim) !important; border-right: 1px solid var(--border); }
+  </style>
   <script>
     (function () {
       "use strict";
@@ -611,6 +681,18 @@
       var STORAGE_CODE_KEY = 'mini_playground_code_v1';
       var STORAGE_SETTINGS_KEY = 'mini_playground_settings_v1';
       var MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min';
+
+      // ---------- Deteksi perangkat ----------
+      // Kombinasi UA + touch + lebar layar, supaya tablet/iPad (UA-nya sering menyamar sbg desktop)
+      // tetap terdeteksi sebagai "mobile" kalau memang layar sempit & pakai touch.
+      function detectMobile() {
+        var ua = navigator.userAgent || '';
+        var uaIsMobile = /Android|iPhone|iPod|Windows Phone|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+        var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        var narrowScreen = Math.min(window.innerWidth, window.innerHeight) <= 820;
+        return uaIsMobile || (isTouch && narrowScreen);
+      }
+      var IS_MOBILE = detectMobile();
 
       var DEFAULT_CODE = {
         html: '<div class="wrap">\n  <h1>Halo! 👋</h1>\n  <p>Tempel kode HTML kamu di sini, atau coba Emmet:\n    ketik <code>div.card&gt;h2+p</code> lalu tekan <kbd>Tab</kbd>.</p>\n  <button id="btn">Klik aku</button>\n</div>',
@@ -631,7 +713,26 @@
           setTimeout(function () { el.remove(); }, 260);
         }, 2400);
       }
+      $(document).ready(function() {
+        $(document).on('keydown', function(e) {
+          if (e.ctrlKey || e.metaKey) {
 
+            if (e.key === 's' || e.key === 'S') {
+              e.preventDefault(); 
+              console.log('Shortcut terdeteksi: Simpan (Save)');
+              saveCode();
+            }
+
+            if (e.key === ',') {
+              e.preventDefault(); // Mencegah aksi default browser
+              console.log('Shortcut terdeteksi: Pengaturan (Settings)');
+              settingsModal.classList.remove('hidden');
+              closeNavPanel();
+            }
+          }
+        });
+      });
+      
       function debounce(fn, wait) {
         var t;
         return function () {
@@ -663,7 +764,10 @@
           return {
             html: typeof parsed.html === 'string' ? parsed.html : DEFAULT_CODE.html,
             css: typeof parsed.css === 'string' ? parsed.css : DEFAULT_CODE.css,
-            javascript: typeof parsed.javascript === 'string' ? parsed.javascript : DEFAULT_CODE.javascript
+            javascript: typeof parsed.javascript === 'string' ? parsed.javascript : DEFAULT_CODE.javascript,
+            files: Array.isArray(parsed.files) ? parsed.files.filter(function (f) {
+              return f && typeof f.name === 'string';
+            }) : []
           };
         } catch (e) { return Object.assign({}, DEFAULT_CODE); }
       }
@@ -672,12 +776,17 @@
         catch (e) { toast('warning', 'Gagal menyimpan pengaturan.'); }
       }
       function saveCode() {
-        if (!models.html) return;
+        if (!Editor.isReady()) return;
         try {
+          var filesData = Object.keys(virtualFiles).map(function (id) {
+            var vf = virtualFiles[id];
+            return { name: vf.name, content: Editor.getValue(id) };
+          });
           localStorage.setItem(STORAGE_CODE_KEY, JSON.stringify({
-            html: models.html.getValue(),
-            css: models.css.getValue(),
-            javascript: models.javascript.getValue()
+            html: Editor.getValue('html'),
+            css: Editor.getValue('css'),
+            javascript: Editor.getValue('javascript'),
+            files: filesData
           }));
         } catch (e) {
           if (e && e.name === 'QuotaExceededError') {
@@ -693,7 +802,7 @@
         document.querySelectorAll('[data-theme-value]').forEach(function (el) {
           el.classList.toggle('selected', el.getAttribute('data-theme-value') === theme);
         });
-        if (window.monaco && editor) {
+        if (typeof Editor !== 'undefined' && Editor.isReady() && Editor.getEngineName() === 'monaco') {
           monaco.editor.setTheme(theme === 'dark' ? 'gh-dark' : 'gh-light');
         }
       }
@@ -703,81 +812,444 @@
         });
       }
 
-      // ---------- Monaco setup ----------
-      var monaco, editor, models = {};
+      // ---------- Editor engine abstraction ----------
+      // Satu antarmuka yang sama dipakai oleh seluruh aplikasi (tab, saveCode, preview, dsb),
+      // apa pun engine di baliknya (Monaco di Laptop, CodeFlask di HP). Ini kuncinya:
+      // localStorage, sistem tab, dan Live Preview tidak pernah tahu/peduli engine mana yang aktif.
+      var monaco, monacoEditor; // hanya terisi kalau engine === 'monaco'
+      var debouncedSave; // diisi setelah engine siap
+
+      var Editor = (function () {
+        var engine = null;         // 'monaco' | 'codeflask'
+        var buffers = {};          // { id: { lang, content } } — sumber kebenaran konten, dipakai kedua engine
+        var monacoModels = {};     // { id: monaco.editor.ITextModel }  (hanya dipakai kalau engine === 'monaco')
+        var cf = null;             // instance CodeFlask (hanya dipakai kalau engine === 'codeflask')
+        var activeId = null;
+        var onChangeCb = function () { };
+
+        var LANG_TO_CODEFLASK = {
+          html: 'markup', css: 'css', javascript: 'javascript',
+          typescript: 'javascript', json: 'javascript', markdown: 'markup',
+          xml: 'markup', plaintext: 'markup'
+        };
+
+        function isReady() { return !!engine; }
+        function getEngineName() { return engine; }
+
+        function initMonaco(containerEl, monacoNs, editorInstance) {
+          engine = 'monaco';
+          monaco = monacoNs;
+          monacoEditor = editorInstance;
+        }
+
+        function initCodeFlask(containerEl) {
+          engine = 'codeflask';
+          cf = new CodeFlask(containerEl, {
+            language: 'markup',
+            lineNumbers: true,
+            defaultTheme: false, // biar warna ikut var(--bg)/var(--text) dari CSS kita, bukan tema bawaan
+            handleTabs: true
+          });
+          cf.onUpdate(debounce(function (code) {
+            if (!activeId || !buffers[activeId]) return;
+            buffers[activeId].content = code;
+            onChangeCb(activeId);
+          }, 600));
+        }
+
+        // Mendaftarkan "buffer" baru (file tab). Dipanggil baik untuk html/css/js maupun file virtual.
+        function registerBuffer(id, lang, content) {
+          buffers[id] = { lang: lang, content: content || '' };
+          if (engine === 'monaco') {
+            var model = monaco.editor.createModel(content || '', lang);
+            model.updateOptions({ tabSize: settings.tabSize });
+            model.onDidChangeContent(debounce(function () {
+              buffers[id].content = model.getValue();
+              onChangeCb(id);
+            }, 600));
+            monacoModels[id] = model;
+          }
+          // Engine CodeFlask tidak butuh persiapan apa pun di sini — kontennya cukup
+          // hidup di `buffers`, dan baru dituangkan ke textarea saat switchTo() dipanggil.
+        }
+
+        function disposeBuffer(id) {
+          if (engine === 'monaco' && monacoModels[id]) {
+            try { monacoModels[id].dispose(); } catch (e) { }
+            delete monacoModels[id];
+          }
+          delete buffers[id];
+          if (activeId === id) activeId = null;
+        }
+
+        function getValue(id) {
+          if (engine === 'monaco' && monacoModels[id]) return monacoModels[id].getValue();
+          return buffers[id] ? buffers[id].content : '';
+        }
+
+        function setValue(id, content) {
+          if (!buffers[id]) return;
+          buffers[id].content = content;
+          if (engine === 'monaco' && monacoModels[id]) {
+            monacoModels[id].setValue(content);
+          } else if (engine === 'codeflask' && activeId === id && cf) {
+            cf.updateCode(content);
+          }
+        }
+
+        function setLanguage(id, lang) {
+          if (!buffers[id]) return;
+          buffers[id].lang = lang;
+          if (engine === 'monaco' && monacoModels[id]) {
+            monaco.editor.setModelLanguage(monacoModels[id], lang);
+          } else if (engine === 'codeflask' && activeId === id && cf) {
+            cf.updateLanguage(LANG_TO_CODEFLASK[lang] || 'markup');
+          }
+        }
+
+        // Berpindah tab aktif. Untuk CodeFlask, konten tab lama disimpan dulu ke `buffers`
+        // (karena CodeFlask cuma punya satu textarea fisik), baru konten tab baru dituangkan.
+        function switchTo(id) {
+          if (!buffers[id]) return;
+          if (engine === 'codeflask' && cf && activeId && buffers[activeId]) {
+            buffers[activeId].content = cf.getCode();
+          }
+          activeId = id;
+          if (engine === 'monaco' && monacoModels[id]) {
+            monacoEditor.setModel(monacoModels[id]);
+          } else if (engine === 'codeflask' && cf) {
+            cf.updateLanguage(LANG_TO_CODEFLASK[buffers[id].lang] || 'markup');
+            cf.updateCode(buffers[id].content);
+          }
+        }
+
+        function focus() {
+          if (engine === 'monaco' && monacoEditor) monacoEditor.focus();
+          // CodeFlask: textarea sudah otomatis fokus lewat interaksi user (tap), tidak perlu dipaksa.
+        }
+
+        function updateTabSize(size) {
+          if (engine !== 'monaco') return; // penyesuaian tabSize khusus dipakai Monaco
+          Object.keys(monacoModels).forEach(function (id) {
+            monacoModels[id].updateOptions({ tabSize: size });
+          });
+        }
+
+        function onChange(cb) { onChangeCb = cb; }
+
+        return {
+          isReady: isReady, getEngineName: getEngineName,
+          initMonaco: initMonaco, initCodeFlask: initCodeFlask,
+          registerBuffer: registerBuffer, disposeBuffer: disposeBuffer,
+          getValue: getValue, setValue: setValue, setLanguage: setLanguage,
+          switchTo: switchTo, focus: focus, updateTabSize: updateTabSize, onChange: onChange
+        };
+      })();
+
       var activeLang = 'html';
 
-      window.MonacoEnvironment = {
-        getWorkerUrl: function () {
-          return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(
-            "self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};" +
-            "importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');"
-          );
-        }
+      // ---------- Virtual File System ----------
+      // virtualFiles: { [id]: { id, name, lang } }
+      // "id" adalah data-id unik tiap tab; "name" adalah nama file yang bisa diganti user.
+      // Konten sesungguhnya hidup di dalam Editor (buffers), bukan di sini.
+      var virtualFiles = {};
+      var untitledCounter = 0;
+
+      var EXT_TO_LANG = {
+        js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'javascript',
+        ts: 'typescript', json: 'json',
+        css: 'css', scss: 'css', less: 'css',
+        html: 'html', htm: 'html',
+        md: 'markdown', xml: 'xml', svg: 'xml',
+        txt: 'plaintext'
       };
+      var EXT_TO_MIME = {
+        js: 'application/javascript', mjs: 'application/javascript', cjs: 'application/javascript', jsx: 'application/javascript',
+        ts: 'application/javascript', json: 'application/json',
+        css: 'text/css', scss: 'text/css', less: 'text/css',
+        html: 'text/html', htm: 'text/html',
+        svg: 'image/svg+xml', xml: 'application/xml',
+        md: 'text/markdown', txt: 'text/plain'
+      };
+      function extOf(name) { return (name.split('.').pop() || '').toLowerCase(); }
+      function langForFile(name) { return EXT_TO_LANG[extOf(name)] || 'plaintext'; }
+      function mimeForFile(name) { return EXT_TO_MIME[extOf(name)] || 'text/plain'; }
 
-      require.config({ paths: { vs: MONACO_BASE + '/vs' } });
-      require(['vs/editor/editor.main'], function () {
-        monaco = window.monaco;
+      // Encode string ke base64 dengan aman untuk karakter unicode (emoji, dsb).
+      function toBase64Utf8(str) {
+        var bytes = new TextEncoder().encode(str);
+        var binary = '';
+        for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      }
 
-        monaco.editor.defineTheme('gh-dark', {
-          base: 'vs-dark', inherit: true, rules: [],
-          colors: { 'editor.background': '#0f141b' }
+      function isFileNameTaken(name, excludeId) {
+        var lower = name.toLowerCase();
+        return Object.keys(virtualFiles).some(function (id) {
+          return id !== excludeId && virtualFiles[id].name.toLowerCase() === lower;
         });
-        monaco.editor.defineTheme('gh-light', {
-          base: 'vs', inherit: true, rules: [],
-          colors: { 'editor.background': '#ffffff' }
-        });
+      }
 
-        models.html = monaco.editor.createModel(codeState.html, 'html');
-        models.css = monaco.editor.createModel(codeState.css, 'css');
-        models.javascript = monaco.editor.createModel(codeState.javascript, 'javascript');
+      // Membuat file virtual baru: buffer di Editor (Monaco/CodeFlask, sesuai engine aktif) + entri di virtualFiles.
+      function createVirtualFile(name, content) {
+        var id = 'file-' + Date.now() + '-' + (++untitledCounter);
+        var lang = langForFile(name);
+        Editor.registerBuffer(id, lang, content || '');
+        virtualFiles[id] = { id: id, name: name, lang: lang };
+        return virtualFiles[id];
+      }
 
-        editor = monaco.editor.create(document.getElementById('editorContainer'), {
-          model: models.html,
-          theme: settings.theme === 'dark' ? 'gh-dark' : 'gh-light',
-          automaticLayout: true,
-          fontSize: 13,
-          minimap: { enabled: false },
-          tabSize: settings.tabSize,
-          scrollBeyondLastLine: false,
-          wordWrap: 'on'
-        });
+      function renderTabButton(vf) {
+        var btn = document.createElement('button');
+        btn.className = 'code-tab';
+        btn.setAttribute('data-id', vf.id);
+        var label = document.createElement('span');
+        label.className = 'tab-label';
+        label.textContent = vf.name;
+        var close = document.createElement('i');
+        close.className = 'fa-solid fa-xmark tab-close';
+        close.title = 'Hapus file';
+        btn.appendChild(label);
+        btn.appendChild(close);
+        return btn;
+      }
 
-        try {
-          var em = window.emmetMonaco || window;
-          if (em.emmetHTML) em.emmetHTML(monaco, ['html']);
-          if (em.emmetCSS) em.emmetCSS(monaco, ['css']);
-        } catch (e) { /* emmet is a progressive enhancement; ignore failures */ }
+      function activateTab(btn) {
+        if (!btn || !Editor.isReady()) return;
+        document.querySelectorAll('.code-tab').forEach(function (t) { t.classList.toggle('active', t === btn); });
+        var lang = btn.getAttribute('data-lang');
+        var id = lang || btn.getAttribute('data-id');
+        if (lang) activeLang = lang;
+        Editor.switchTo(id);
+        Editor.focus();
+      }
 
-        var debouncedSave = debounce(saveCode, 1000);
-        ['html', 'css', 'javascript'].forEach(function (lang) {
-          models[lang].onDidChangeContent(debounce(function () {
+      function addNewFileTab() {
+        if (!Editor.isReady()) return;
+        var name;
+        do {
+          untitledCounter++;
+          name = 'untitled' + untitledCounter + '.js';
+        } while (isFileNameTaken(name));
+        untitledCounter--; // dikembalikan karena createVirtualFile akan increment lagi utk id
+        var vf = createVirtualFile(name, '');
+        var btn = renderTabButton(vf);
+        document.getElementById('addTabBtn').insertAdjacentElement('beforebegin', btn);
+        activateTab(btn);
+        if (debouncedSave) debouncedSave();
+        startRenameTab(btn);
+      }
+
+      function removeVirtualTab(id) {
+        var vf = virtualFiles[id];
+        if (!vf) return;
+        var btn = document.querySelector('.code-tab[data-id="' + id + '"]');
+        var wasActive = btn && btn.classList.contains('active');
+        Editor.disposeBuffer(id);
+        delete virtualFiles[id];
+        if (btn) btn.remove();
+        if (wasActive) {
+          var fallback = document.querySelector('.code-tab[data-lang="html"]');
+          activateTab(fallback);
+        }
+        if (debouncedSave) debouncedSave();
+        if (autoRunEnabled) runPreview();
+      }
+
+      // Ganti label tab jadi <input> saat double-click; simpan saat Enter / blur.
+      function startRenameTab(btn) {
+        var vf = virtualFiles[btn.getAttribute('data-id')];
+        if (!vf || btn.getAttribute('data-editing') === '1') return;
+        var label = btn.querySelector('.tab-label');
+        if (!label) return;
+        btn.setAttribute('data-editing', '1');
+        var oldName = vf.name;
+
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'tab-rename-input';
+        input.value = oldName;
+        label.replaceWith(input);
+        input.focus();
+        input.select();
+
+        var committed = false;
+        function commit() {
+          if (committed) return;
+          committed = true;
+          var newName = input.value.trim();
+          if (!newName) newName = oldName;
+          if (newName !== oldName && isFileNameTaken(newName, vf.id)) {
+            toast('warning', 'Nama file "' + newName + '" sudah dipakai.');
+            newName = oldName;
+          }
+          if (newName !== oldName) {
+            vf.name = newName;
+            var newLang = langForFile(newName);
+            if (newLang !== vf.lang) {
+              vf.lang = newLang;
+              Editor.setLanguage(vf.id, newLang);
+            }
+            if (debouncedSave) debouncedSave();
             if (autoRunEnabled) runPreview();
-            debouncedSave();
-          }, 600));
+          }
+          var newLabel = document.createElement('span');
+          newLabel.className = 'tab-label';
+          newLabel.textContent = vf.name;
+          input.replaceWith(newLabel);
+          btn.removeAttribute('data-editing');
+        }
+        input.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
+          else if (ev.key === 'Escape') { ev.preventDefault(); input.value = oldName; input.blur(); }
+        });
+        input.addEventListener('blur', commit);
+        input.addEventListener('click', function (ev) { ev.stopPropagation(); });
+        input.addEventListener('dblclick', function (ev) { ev.stopPropagation(); });
+      }
+
+      // ---------- Intersepsi Live Preview: mengganti src/href yang menunjuk ke file virtual ----------
+      // Contoh: tag script dgn src="/tailwind.config.js" di tab HTML akan otomatis
+      // diarahkan ke isi tab "tailwind.config.js" via data: URI (tanpa perlu server sungguhan).
+      function normalizeFileRef(url) {
+        var clean = url.split('#')[0].split('?')[0];
+        clean = clean.replace(/^(\.\/|\/)+/, '');
+        return clean.toLowerCase();
+      }
+      function injectVirtualFiles(html) {
+        var ids = Object.keys(virtualFiles);
+        if (!ids.length) return html;
+        var lookup = {};
+        ids.forEach(function (id) {
+          var vf = virtualFiles[id];
+          lookup[vf.name.toLowerCase()] = vf;
+        });
+        return html.replace(/\b(src|href)\s*=\s*(["'])(.*?)\2/gi, function (whole, attr, quote, url) {
+          if (/^(https?:|data:|\/\/|#)/i.test(url)) return whole; // biarkan URL eksternal/absolut apa adanya
+          var vf = lookup[normalizeFileRef(url)];
+          if (!vf) return whole;
+          var content = Editor.getValue(vf.id);
+          var dataUri = 'data:' + mimeForFile(vf.name) + ';charset=utf-8;base64,' + toBase64Utf8(content);
+          return attr + '=' + quote + dataUri + quote;
+        });
+      }
+
+      // Dipanggil setelah engine (Monaco ATAU CodeFlask) siap dan buffer html/css/javascript terdaftar.
+      // Ini titik pertemuan kedua engine: restore file virtual, jalankan preview pertama, dst.
+      function afterEngineReady() {
+        debouncedSave = debounce(saveCode, 1000);
+        Editor.onChange(function () {
+          if (autoRunEnabled) runPreview();
+          if (debouncedSave) debouncedSave();
+        });
+
+        // Restore tab file virtual yang tersimpan sebelumnya (localStorage)
+        (codeState.files || []).forEach(function (f) {
+          if (!f || typeof f.name !== 'string') return;
+          var vf = createVirtualFile(f.name, typeof f.content === 'string' ? f.content : '');
+          var btn = renderTabButton(vf);
+          document.getElementById('addTabBtn').insertAdjacentElement('beforebegin', btn);
         });
 
         runPreview();
         applyTabSizeUI();
-      });
+      }
+
+      function initDesktopEngine() {
+        window.MonacoEnvironment = {
+          getWorkerUrl: function () {
+            return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(
+              "self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};" +
+              "importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');"
+            );
+          }
+        };
+
+        require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+        require(['vs/editor/editor.main'], function () {
+          var monacoNs = window.monaco;
+
+          monacoNs.editor.defineTheme('gh-dark', {
+            base: 'vs-dark', inherit: true, rules: [],
+            colors: { 'editor.background': '#0f141b' }
+          });
+          monacoNs.editor.defineTheme('gh-light', {
+            base: 'vs', inherit: true, rules: [],
+            colors: { 'editor.background': '#ffffff' }
+          });
+
+          var editorInstance = monacoNs.editor.create(document.getElementById('editorContainer'), {
+            theme: settings.theme === 'dark' ? 'gh-dark' : 'gh-light',
+            automaticLayout: true,
+            fontSize: 13,
+            minimap: { enabled: false },
+            tabSize: settings.tabSize,
+            scrollBeyondLastLine: false,
+            wordWrap: 'on'
+          });
+
+          Editor.initMonaco(document.getElementById('editorContainer'), monacoNs, editorInstance);
+          Editor.registerBuffer('html', 'html', codeState.html);
+          Editor.registerBuffer('css', 'css', codeState.css);
+          Editor.registerBuffer('javascript', 'javascript', codeState.javascript);
+          Editor.switchTo('html');
+
+          try {
+            var em = window.emmetMonaco || window;
+            if (em.emmetHTML) em.emmetHTML(monacoNs, ['html']);
+            if (em.emmetCSS) em.emmetCSS(monacoNs, ['css']);
+          } catch (e) { /* emmet is a progressive enhancement; ignore failures */ }
+
+          afterEngineReady();
+        });
+      }
+
+      function initMobileEngine() {
+        // CodeFlask: satu textarea fisik, kontennya ditukar (bukan multi-model spt Monaco).
+        // Lihat Editor.switchTo — ia yang menyimpan/menuangkan konten saat pindah tab.
+        Editor.initCodeFlask(document.getElementById('editorContainer'));
+        Editor.registerBuffer('html', 'html', codeState.html);
+        Editor.registerBuffer('css', 'css', codeState.css);
+        Editor.registerBuffer('javascript', 'javascript', codeState.javascript);
+        Editor.switchTo('html');
+        afterEngineReady();
+      }
+
+      if (IS_MOBILE) {
+        initMobileEngine();
+      } else {
+        initDesktopEngine();
+      }
 
       // ---------- tabs ----------
+      document.getElementById('addTabBtn').addEventListener('click', function () {
+        addNewFileTab();
+      });
       document.getElementById('tabs').addEventListener('click', function (e) {
-        var btn = e.target.closest('.code-tab');
-        if (!btn || !editor) return;
-        var lang = btn.getAttribute('data-lang');
-        activeLang = lang;
-        document.querySelectorAll('.code-tab').forEach(function (t) { t.classList.toggle('active', t === btn); });
-        editor.setModel(models[lang]);
-        editor.focus();
+        if (e.target.closest('#addTabBtn')) return; // sudah ditangani listener di atas
+        var closeBtn = e.target.closest('.tab-close');
+        if (closeBtn) {
+          e.stopPropagation();
+          var tabBtn = closeBtn.closest('.code-tab[data-id]');
+          if (tabBtn) removeVirtualTab(tabBtn.getAttribute('data-id'));
+          return;
+        }
+        var btn = e.target.closest('.code-tab[data-lang], .code-tab[data-id]');
+        if (!btn || !Editor.isReady() || btn.getAttribute('data-editing') === '1') return;
+        activateTab(btn);
+      });
+      document.getElementById('tabs').addEventListener('dblclick', function (e) {
+        var btn = e.target.closest('.code-tab[data-id]');
+        if (!btn) return;
+        startRenameTab(btn);
       });
 
       // ---------- preview ----------
       function buildPreviewDoc() {
-        var html = models.html ? models.html.getValue() : '';
-        var css = models.css ? models.css.getValue() : '';
-        var js = models.javascript ? models.javascript.getValue() : '';
+        var html = Editor.getValue('html');
+        var css = Editor.getValue('css');
+        var js = Editor.getValue('javascript');
+        html = injectVirtualFiles(html); // ganti src/href yang menunjuk ke file virtual dgn data: URI
         var jsSafe = js.replace(/<\/script>/gi, '<\\/script>');
         return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
           '<style>*{box-sizing:border-box;}html,body{margin:0;}' + css + '</style></head>' +
@@ -865,10 +1337,10 @@
         $downloadChevron.toggleClass('open');
       });
       $downloadSubmenu.on('click', 'button[data-file]', function () {
-        var map = { html: ['index.html', models.html], css: ['style.css', models.css], js: ['script.js', models.javascript] };
+        var map = { html: ['index.html', 'html'], css: ['style.css', 'css'], js: ['script.js', 'javascript'] };
         var conf = map[$(this).data('file')];
-        if (!conf || !conf[1]) return;
-        downloadFile(conf[0], conf[1].getValue());
+        if (!conf || !Editor.isReady()) return;
+        downloadFile(conf[0], Editor.getValue(conf[1]));
         closeNavPanel();
       });
       function downloadFile(filename, content) {
@@ -901,11 +1373,7 @@
         if (!pill) return;
         settings.tabSize = parseInt(pill.getAttribute('data-tabsize-value'), 10);
         applyTabSizeUI();
-        if (window.monaco) {
-          ['html', 'css', 'javascript'].forEach(function (lang) {
-            if (models[lang]) models[lang].updateOptions({ tabSize: settings.tabSize });
-          });
-        }
+        Editor.updateTabSize(settings.tabSize);
         saveSettings();
       });
 
@@ -953,7 +1421,7 @@
           if (!lang) { toast('warning', 'Tipe file tidak didukung: ' + file.name); return; }
           var reader = new FileReader();
           reader.onload = function () {
-            if (models[lang]) models[lang].setValue(reader.result);
+            if (Editor.isReady()) Editor.setValue(lang, reader.result);
             loaded++;
             if (files.length === 1) {
               var tabBtn = document.querySelector('.code-tab[data-lang="' + lang + '"]');
