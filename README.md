@@ -8,22 +8,20 @@ Terinspirasi dari CodePen / VS Code, tapi tanpa instalasi apa pun.
 
 ## ✨ Fitur
 
-| Fitur | Keterangan |
-|---|---|
-| 🖥️ Editor kode | Menggunakan Monaco Editor (engine yang sama dengan VS Code) |
-| 🎨 Syntax highlighting | Tema kustom bergaya GitHub Light & Dark |
-| 💡 Autocomplete / IntelliSense | Muncul otomatis saat mengetik |
-| ⚡ Emmet / Auto-tag | Ketik `div.box>ul>li*3` + `Tab` → langsung jadi struktur HTML lengkap |
-| 🔀 3 Tab (HTML/CSS/JS) | Tiap bahasa punya area kode sendiri |
-| ▶️ Live Preview | Output dirender di `<iframe>`, real-time (auto-run) atau manual (tombol Run) |
-| ↔️ Splitter resizable | Batas antara panel editor & preview bisa digeser (mouse & touch) |
-| 📁 Upload file | Upload atau **drag & drop** file `.html` / `.css` / `.js` dari laptop |
-| 💾 Save otomatis | Kode tersimpan ke `localStorage`, aman dari refresh/tutup tab |
-| ⬇️ Download per file | Unduh `index.html`, `style.css`, atau `script.js` secara terpisah |
-| ⚙️ Pengaturan | Ganti tema (Light/Dark) dan ukuran tab (2/4/8 spasi) |
-| 📱 Responsif | Layout otomatis menjadi atas/bawah di layar kecil |
-
----
+Fitur,Keterangan
+🖥️ Editor kode,Menggunakan Monaco Editor (engine yang sama dengan VS Code)
+🎨 Syntax highlighting,Tema kustom bergaya GitHub Light & Dark
+💡 Autocomplete / IntelliSense,Muncul otomatis saat mengetik
+⚡ Emmet / Auto-tag,Ketik div.box>ul>li*3 + Tab → langsung jadi struktur HTML lengkap
+🔀 3 Tab (HTML/CSS/JS),Tiap bahasa punya area kode sendiri
+▶️ Live Preview,"Output dirender di <iframe>, real-time (auto-run) atau manual (tombol Run)"
+↔️ Splitter resizable,Batas antara panel editor & preview bisa digeser (mouse & touch)
+🪟 Draggable Floating Navbar,Menu kontrol melayang yang posisinya bisa digeser bebas (drag & drop) di area layar
+📁 Upload file,Upload atau drag & drop file .html / .css / .js dari laptop
+💾 Save otomatis,"Kode tersimpan ke localStorage, aman dari refresh/tutup tab"
+⬇️ Download per file,"Unduh index.html, style.css, atau script.js secara terpisah"
+⚙️ Pengaturan,Ganti tema (Light/Dark) dan ukuran tab (2/4/8 spasi) lewat menu
+📱 Responsif,Layout otomatis menjadi atas/bawah di layar kecil
 
 ## 🚀 Cara Menjalankan
 
@@ -88,6 +86,19 @@ Pengaturan ini juga tersimpan di `localStorage` sehingga tetap sama saat kamu me
 
 ### 8. Mengubah Ukuran Panel
 Arahkan kursor ke garis pemisah (splitter) di antara panel editor dan panel preview, lalu klik-tahan dan geser untuk memperlebar/mempersempit salah satu sisi. Mendukung mouse maupun sentuhan (touch).
+
+### 8. Draggable Floating Navbar Mode
+- Logika Mode OFF (Split-Screen View - Default):
+Jika mode ini dimatikan, tampilan kembali ke desain standar saya: Layar terbagi dua (Kiri untuk Editor Kode, Kanan untuk Output Preview).
+Draggable Floating Navbar disembunyikan (hidden).
+
+- Logika Mode ON (Single-Screen View dengan Draggable Navbar):
+Jika mode ini diaktifkan, layar tidak lagi terbagi dua, melainkan mengambil lebar penuh (100% width) untuk salah satu panel saja.
+Draggable Floating Navbar akan muncul dan melayang di layar.
+Di dalam navbar tersebut, terdapat 2 tombol navigasi: "Input" dan "Output".
+Jika user mengklik tombol "Input", halaman akan menampilkan panel Editor Kode secara penuh (fullscreen/w-full), dan panel Output disembunyikan.
+Jika user mengklik tombol "Output", halaman akan berpindah menampilkan panel Output Preview (iframe) secara penuh, dan panel Editor disembunyikan.
+Syarat Kritis: Meskipun panel Output sedang disembunyikan (saat user di halaman "Input"), proses real-time rendering harus tetap berjalan di latar belakang. Jadi begitu user mengklik "Output", hasilnya sudah up-to-date tanpa perlu me-reload iframe.
 
 ---
 

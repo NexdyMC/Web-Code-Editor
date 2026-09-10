@@ -1,666 +1,1066 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Mini Code Playground</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Web Code Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+    :root[data-theme="dark"] {
+      --bg: #0d1117;
+      --panel: #0f141b;
+      --panel-alt: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --text-dim: #8b949e;
+      --accent: #4f8cff;
+      --accent-hover: #6fa1ff;
+      --danger: #f85149;
+      --success: #3fb950;
+      --warning: #d29922;
+      --tab-active: #161b22;
+      --shadow: 0 8px 24px rgba(0, 0, 0, .5);
+    }
 
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com"></script>
+    :root[data-theme="light"] {
+      --bg: #ffffff;
+      --panel: #f6f8fa;
+      --panel-alt: #eef1f4;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --text-dim: #59636e;
+      --accent: #0969da;
+      --accent-hover: #218bff;
+      --danger: #cf222e;
+      --success: #1a7f37;
+      --warning: #9a6700;
+      --tab-active: #ffffff;
+      --shadow: 0 8px 24px rgba(31, 35, 40, .16);
+    }
 
-<!-- jQuery -->
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    * {
+      box-sizing: border-box;
+    }
 
-<style>
-  html, body { height: 100%; margin: 0; overflow: hidden; }
-  body.dark { background-color: #0d1117; }
-  #app { height: 100vh; display: flex; flex-direction: column; }
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overscroll-behavior: none;
+    }
 
-  /* ===== Header ===== */
-  #header {
-    transition: background-color .2s, border-color .2s;
-  }
-  body.dark #header {
-    background-color: #161b22 !important;
-    border-color: #30363d !important;
-  }
-  body.dark #header h1 { color: #e6edf3; }
+    ::selection {
+      background: var(--accent);
+      color: #fff;
+    }
 
-  /* ===== Tabs ===== */
-  .tab-btn.active {
-    background-color: #ffffff;
-    border-bottom: 2px solid #2563eb;
-    color: #2563eb;
-    font-weight: 600;
-  }
-  .tab-btn { color: #57606a; }
-  body.dark .tab-btn { color: #8b949e; }
-  body.dark .tab-btn.active {
-    background-color: #0d1117;
-    color: #58a6ff;
-    border-bottom: 2px solid #58a6ff;
-  }
-  body.dark .tab-bar { background-color: #161b22 !important; border-color: #30363d !important; }
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
 
-  /* ===== Panels ===== */
-  #splitContainer { display: flex; flex: 1; min-height: 0; }
-  #leftPanel, #rightPanel {
-    height: 100%; display: flex; flex-direction: column; min-width: 100px;
-  }
-  #leftPanel { width: 50%; background: #fff; }
-  #rightPanel { width: calc(50% - 6px); background: #fff; }
-  body.dark #leftPanel, body.dark #rightPanel { background-color: #0d1117; }
-  body.dark .panel-title { background-color: #161b22 !important; color: #8b949e !important; border-color: #30363d !important; }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
 
-  #splitter {
-    width: 6px; cursor: col-resize; background-color: #d0d7de; flex-shrink: 0;
-  }
-  #splitter:hover { background-color: #2563eb; }
-  body.dark #splitter { background-color: #30363d; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 6px;
+    }
 
-  #editorContainer { flex: 1; min-height: 0; position: relative; }
+    button {
+      font-family: inherit;
+    }
 
-  #outputFrame { flex: 1; width: 100%; border: none; background: white; }
+    #tabs {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
 
-  /* Drag & drop overlay */
-  #dropOverlay {
-    position: absolute; inset: 0;
-    background: rgba(37, 99, 235, 0.12);
-    border: 3px dashed #2563eb;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    color: #2563eb;
-    font-size: 1.1rem;
-    z-index: 50;
-    pointer-events: none;
-  }
-  #editorContainer.drag-active #dropOverlay { display: flex; }
+    .code-tab {
+      padding: 9px 18px;
+      font-size: 12.5px;
+      font-weight: 600;
+      letter-spacing: .2px;
+      color: var(--text-dim);
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      background: transparent;
+      border-bottom: 2px solid transparent;
+      transition: color .12s;
+    }
 
-  /* Responsive: stack vertically on small screens */
-  @media (max-width: 768px) {
-    #splitContainer { flex-direction: column; }
-    #leftPanel, #rightPanel { width: 100% !important; height: 50%; }
-    #splitter { width: 100%; height: 6px; cursor: row-resize; }
-  }
+    .code-tab:hover {
+      color: var(--text);
+    }
 
-  /* ===== Modal ===== */
-  #settingsModal {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-    display: none; align-items: center; justify-content: center; z-index: 100;
-  }
-  #settingsModal.open { display: flex; }
-  #settingsBox {
-    background: white; border-radius: 10px; width: 360px; max-width: 90vw;
-    padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  }
-  body.dark #settingsBox { background-color: #161b22; color: #e6edf3; }
-  body.dark #settingsBox select, body.dark #settingsBox input {
-    background-color: #0d1117; color: #e6edf3; border-color: #30363d;
-  }
+    .code-tab.active {
+      color: var(--text);
+      background: var(--tab-active);
+      border-bottom: 2px solid var(--accent);
+    }
 
-  .icon-btn {
-    display: inline-flex; align-items: center; gap: 4px;
-  }
+    #splitter {
+      width: 6px;
+      flex: 0 0 6px;
+      background: var(--panel);
+      cursor: col-resize;
+      position: relative;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
 
-  #toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: #24292f; color: white; padding: 8px 16px; border-radius: 8px;
-    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s;
-    z-index: 200;
-  }
-  #toast.show { opacity: 1; }
-</style>
+    #splitter:hover,
+    #splitter.dragging {
+      background: var(--accent);
+    }
+
+    .panel-head {
+      padding: 7px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .6px;
+      color: var(--text-dim);
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex: 0 0 auto;
+    }
+
+    #previewFrame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+      flex: 1 1 auto;
+    }
+
+    .drop-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(79, 140, 255, .12);
+      border: 2px dashed var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 14px;
+      z-index: 40;
+      pointer-events: none;
+    }
+
+    #main {
+      min-height: 0;
+    }
+
+    #editorPanel,
+    #previewPanel {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    /* ---------- draggable capsule navbar ---------- */
+    #mainNav {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 80;
+      touch-action: none;
+    }
+
+    #navCapsule {
+      cursor: grab;
+      user-select: none;
+    }
+
+    #navCapsule.dragging {
+      cursor: grabbing;
+    }
+
+    #navDragHandle {
+      cursor: grab;
+    }
+
+    #navToggleBtn {
+      transition: background .12s, color .12s;
+    }
+
+    #navPanel {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      width: 224px;
+      background: #0d1117e6;
+      backdrop-filter: blur(6px);
+      border: 1px solid #30363d;
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 8px;
+    }
+
+    .nav-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 10px;
+      margin-bottom: 2px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #e6edf3;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background .12s;
+    }
+
+    .nav-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .nav-row:hover {
+      background: #1f2937;
+    }
+
+    .nav-row i {
+      width: 18px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 13px;
+    }
+
+    .nav-row:hover i {
+      color: #e6edf3;
+    }
+
+    .nav-row-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .nav-row-primary:hover {
+      background: #3b82f6;
+    }
+
+    .nav-row-primary i {
+      color: #fff;
+    }
+
+    .nav-row-active {
+      background: #132339;
+    }
+
+    .nav-row-active i {
+      color: var(--accent);
+    }
+
+    .nav-state {
+      margin-left: auto;
+      font-size: 9.5px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      color: #6b7280;
+    }
+
+    .nav-state.on {
+      color: #3fb950;
+    }
+
+    #downloadSubmenu {
+      display: none;
+      padding-left: 26px;
+      padding-top: 2px;
+      padding-bottom: 2px;
+    }
+
+    .nav-subrow {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 7px 10px;
+      margin-bottom: 2px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #9ca3af;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+
+    .nav-subrow:last-child {
+      margin-bottom: 0;
+    }
+
+    .nav-subrow:hover {
+      background: #1f2937;
+      color: #e6edf3;
+    }
+
+    #downloadChevron {
+      transition: transform .15s;
+    }
+
+    #downloadChevron.open {
+      transform: rotate(180deg);
+    }
+
+    /* ---------- input/output icon toggles, inline in the capsule ---------- */
+    .nav-icon-btn {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: none;
+      background: transparent;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background .12s, color .12s;
+    }
+
+    .nav-icon-btn:hover {
+      background: #1f2937;
+      color: #e6edf3;
+    }
+
+    .nav-icon-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .nav-divider {
+      width: 1px;
+      height: 20px;
+      background: #30363d;
+      margin: 0 2px;
+      flex: 0 0 1px;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .5);
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-box {
+      width: min(380px, 90vw);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .setting-group {
+      margin-bottom: 16px;
+    }
+
+    .setting-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      color: var(--text-dim);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .option-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .option-pill {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--panel-alt);
+      font-size: 12.5px;
+      cursor: pointer;
+      color: var(--text);
+    }
+
+    .option-pill.selected {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    #toastContainer {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 95;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      box-shadow: var(--shadow);
+      animation: toastIn .18s ease-out;
+      min-width: 200px;
+    }
+
+    .toast.success {
+      background: var(--success);
+    }
+
+    .toast.warning {
+      background: var(--warning);
+    }
+
+    .toast.error {
+      background: var(--danger);
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width:767px) {
+      #main {
+        flex-direction: column;
+      }
+
+      #splitter {
+        width: auto !important;
+        height: 6px;
+        flex: 0 0 6px;
+        cursor: row-resize;
+        border-left: none;
+        border-right: none;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+
+      #editorPanel,
+      #previewPanel {
+        width: 100% !important;
+        height: 50%;
+        flex: none;
+      }
+    }
+  </style>
 </head>
-<body class="bg-gray-100">
 
-<div id="app">
-  <!-- Header -->
-  <div id="header" class="bg-white border-b border-gray-300 px-4 py-2 flex items-center justify-between shadow-sm flex-wrap gap-2">
-    <h1 class="text-lg font-bold text-gray-800">🧪 Mini Code Playground</h1>
-    <div class="flex items-center gap-2 flex-wrap">
-      <button id="uploadBtn" class="icon-btn bg-gray-600 hover:bg-gray-700 text-white text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
-        📁 Upload
-      </button>
-      <input type="file" id="fileInput" accept=".html,.htm,.css,.js" multiple class="hidden" />
+<body>
+  <div id="app" class="h-screen flex flex-col">
 
-      <div class="relative inline-block">
-        <button id="downloadBtn" class="icon-btn bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
-          ⬇ Download
+    <main id="main" class="flex-1 flex overflow-hidden relative">
+
+      <section id="editorPanel" class="flex flex-col relative" style="width:50%;">
+        <div id="tabs" class="flex">
+          <button class="code-tab active" data-lang="html">HTML</button>
+          <button class="code-tab" data-lang="css">CSS</button>
+          <button class="code-tab" data-lang="javascript">JS</button>
+        </div>
+        <div id="editorContainer" class="flex-1" style="min-height:0;"></div>
+        <div id="dropOverlay" class="drop-overlay hidden">Lepaskan file di sini untuk mengunggah</div>
+      </section>
+
+      <div id="splitter"></div>
+
+      <section id="previewPanel" class="flex flex-col" style="width:50%;">
+        <div class="panel-head flex items-center justify-between">
+          <span>PREVIEW</span>
+          <span id="errorBadge" class="hidden" style="color:var(--danger);font-weight:700;"><i
+              class="fa-solid fa-triangle-exclamation"></i> Error</span>
+        </div>
+        <iframe id="previewFrame"
+          sandbox="allow-scripts allow-forms allow-modals allow-popups allow-pointer-lock"></iframe>
+      </section>
+
+    </main>
+
+    <!-- draggable capsule navbar: collapsed = handle + hamburger, expanded = 7 menu items -->
+    <div id="mainNav">
+      <div id="navCapsule"
+        class="flex items-center gap-1 bg-gray-900/95 border border-gray-700 rounded-full shadow-lg px-2 py-2">
+        <span id="navDragHandle" class="w-7 h-8 flex items-center justify-center text-gray-500 hover:text-gray-300">
+          <i class="fa-solid fa-grip-vertical"></i>
+        </span>
+        <button id="navInputBtn" class="nav-icon-btn" title="Tampilkan Input (editor)">
+          <i class="fa-solid fa-code"></i>
         </button>
-        <div id="downloadMenu" class="hidden absolute right-0 mt-1 w-40 bg-white border border-gray-300 rounded-md shadow-lg text-sm z-50">
-          <button data-lang="html" class="download-item w-full text-left px-3 py-2 hover:bg-gray-100">index.html</button>
-          <button data-lang="css" class="download-item w-full text-left px-3 py-2 hover:bg-gray-100">style.css</button>
-          <button data-lang="javascript" class="download-item w-full text-left px-3 py-2 hover:bg-gray-100">script.js</button>
+        <button id="navOutputBtn" class="nav-icon-btn" title="Tampilkan Output (preview)">
+          <i class="fa-solid fa-eye"></i>
+        </button>
+        <span class="nav-divider"></span>
+        <button id="navToggleBtn"
+          class="w-9 h-9 flex items-center justify-center rounded-full text-gray-200 hover:bg-gray-800" title="Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+      <div id="navPanel">
+        <label id="menuUpload" class="nav-row" title="Upload file .html/.css/.js" style="cursor:pointer;">
+          <i class="fa-solid fa-folder-open"></i>
+          <span>Upload</span>
+          <input type="file" id="fileInput" multiple accept=".html,.css,.js" class="hidden">
+        </label>
+
+        <button id="menuAutoRun" class="nav-row nav-row-active" title="Auto-run saat mengetik">
+          <i class="fa-solid fa-square-check" id="autoRunIcon"></i>
+          <span>Auto-run</span>
+          <span id="autoRunState" class="nav-state on">ON</span>
+        </button>
+
+        <button id="menuRun" class="nav-row nav-row-primary" title="Jalankan preview">
+          <i class="fa-solid fa-play"></i>
+          <span>Run</span>
+        </button>
+
+        <button id="menuSave" class="nav-row" title="Simpan manual">
+          <i class="fa-solid fa-floppy-disk"></i>
+          <span>Save</span>
+        </button>
+
+        <div id="menuDownloadWrap">
+          <button id="menuDownload" class="nav-row" title="Unduh file">
+            <i class="fa-solid fa-download"></i>
+            <span>Download</span>
+            <i class="fa-solid fa-chevron-down nav-state" id="downloadChevron" style="color:#6b7280;"></i>
+          </button>
+          <div id="downloadSubmenu">
+            <button class="nav-subrow" data-file="html">index.html</button>
+            <button class="nav-subrow" data-file="css">style.css</button>
+            <button class="nav-subrow" data-file="js">script.js</button>
+          </div>
+        </div>
+
+        <button id="menuSettings" class="nav-row" title="Pengaturan">
+          <i class="fa-solid fa-gear"></i>
+          <span>Settings</span>
+        </button>
+
+        <button id="menuMode" class="nav-row nav-row-active" title="Tampilkan Input & Output berdampingan">
+          <i class="fa-solid fa-table-columns"></i>
+          <span>Split View</span>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="settingsModal" class="modal-backdrop hidden">
+    <div class="modal-box">
+      <div class="flex items-center justify-between" style="margin-bottom:14px;">
+        <span style="font-weight:700;font-size:14px;"><i class="fa-solid fa-gear"></i> Pengaturan</span>
+        <button id="closeSettings"
+          style="background:none;border:none;font-size:16px;color:var(--text-dim);cursor:pointer;">✕</button>
+      </div>
+      <div class="setting-group">
+        <span class="setting-label">TEMA</span>
+        <div class="option-row" id="themeOptions">
+          <div class="option-pill" data-theme-value="light">☀️ Light</div>
+          <div class="option-pill" data-theme-value="dark">🌙 Dark</div>
         </div>
       </div>
-
-      <button id="saveBtn" class="icon-btn bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
-        💾 Save
-      </button>
-
-      <button id="settingsBtn" class="icon-btn bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold px-3 py-1.5 rounded-md shadow-sm transition">
-        ⚙ Settings
-      </button>
-
-      <button id="runBtn" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-1.5 rounded-md shadow-sm transition">
-        ▶ Run
-      </button>
-      <label class="flex items-center gap-1 text-sm text-gray-600 select-none">
-        <input type="checkbox" id="autoRunToggle" class="accent-blue-600" checked />
-        Auto-run
-      </label>
+      <div class="setting-group" style="margin-bottom:0;">
+        <span class="setting-label">UKURAN TAB</span>
+        <div class="option-row" id="tabSizeOptions">
+          <div class="option-pill" data-tabsize-value="2">2</div>
+          <div class="option-pill" data-tabsize-value="4">4</div>
+          <div class="option-pill" data-tabsize-value="8">8</div>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Main split container -->
-  <div id="splitContainer">
-    <!-- Left: Editor Panel -->
-    <div id="leftPanel">
-      <div class="tab-bar flex border-b border-gray-300 bg-gray-50">
-        <button class="tab-btn active px-4 py-2 text-sm border-r border-gray-200" data-lang="html">HTML</button>
-        <button class="tab-btn px-4 py-2 text-sm border-r border-gray-200" data-lang="css">CSS</button>
-        <button class="tab-btn px-4 py-2 text-sm border-r border-gray-200" data-lang="javascript">JavaScript</button>
-      </div>
-      <div id="editorContainer">
-        <div id="dropOverlay">⬇ Lepaskan file di sini untuk memuatnya ⬇</div>
-      </div>
-    </div>
+  <div id="toastContainer"></div>
 
-    <!-- Splitter -->
-    <div id="splitter"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+  <script src="https://unpkg.com/emmet-monaco-es/dist/emmet-monaco.min.js"></script>
+  <script>
+    (function () {
+      "use strict";
 
-    <!-- Right: Output Panel -->
-    <div id="rightPanel">
-      <div class="panel-title border-b border-gray-300 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-600">
-        Output Preview
-      </div>
-      <iframe id="outputFrame" sandbox="allow-scripts allow-modals allow-forms allow-popups"></iframe>
-    </div>
-  </div>
-</div>
+      var STORAGE_CODE_KEY = 'mini_playground_code_v1';
+      var STORAGE_SETTINGS_KEY = 'mini_playground_settings_v1';
+      var MONACO_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min';
 
-<!-- Settings Modal -->
-<div id="settingsModal">
-  <div id="settingsBox">
-    <h2 class="text-lg font-bold mb-4">⚙ Pengaturan</h2>
-
-    <div class="mb-4">
-      <label class="block text-sm font-medium mb-1">Tema</label>
-      <select id="themeSelect" class="w-full border rounded-md px-2 py-1.5 text-sm">
-        <option value="light">☀ Light</option>
-        <option value="dark">🌙 Dark</option>
-      </select>
-    </div>
-
-    <div class="mb-4">
-      <label class="block text-sm font-medium mb-1">Ukuran Tab (spasi)</label>
-      <select id="tabSizeSelect" class="w-full border rounded-md px-2 py-1.5 text-sm">
-        <option value="2">2</option>
-        <option value="4">4</option>
-        <option value="8">8</option>
-      </select>
-    </div>
-
-    <div class="flex justify-end gap-2 mt-6">
-      <button id="closeSettingsBtn" class="px-4 py-1.5 text-sm rounded-md bg-gray-200 hover:bg-gray-300">Tutup</button>
-    </div>
-  </div>
-</div>
-
-<div id="toast"></div>
-
-<!-- Monaco Editor Loader -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
-<!-- Emmet support for Monaco (auto-tag & abbreviation expansion) -->
-<script src="https://unpkg.com/emmet-monaco-es@5.4.0/dist/emmet-monaco.min.js"></script>
-
-<script>
-  require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
-
-  const STORAGE_KEY = 'mini_playground_code_v1';
-  const SETTINGS_KEY = 'mini_playground_settings_v1';
-
-  const defaultCode = {
-    html: `<h1>Hello, Playground!</h1>
-<p>Tempel kode HTML kamu di sini, atau ketik "div.box>ul>li*3" lalu tekan Tab untuk auto-expand (Emmet).</p>`,
-    css: `body {
-  font-family: sans-serif;
-  background: #f9fafb;
-  color: #24292f;
-  padding: 20px;
-}
-
-h1 {
-  color: #2563eb;
-}`,
-    javascript: `console.log("Playground siap!");
-
-document.querySelector('h1').addEventListener('click', () => {
-  alert('Kamu klik judulnya!');
-});`
-  };
-
-  let editor;
-  let currentLang = 'html';
-  let codeStore = { ...defaultCode };
-  let settings = { theme: 'light', tabSize: 2 };
-
-  // ---------- Load saved data ----------
-  function loadFromStorage() {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        codeStore = { ...defaultCode, ...parsed };
-      }
-    } catch (e) {
-      console.warn('Gagal memuat kode tersimpan:', e);
-    }
-    try {
-      const savedSettings = localStorage.getItem(SETTINGS_KEY);
-      if (savedSettings) {
-        settings = { ...settings, ...JSON.parse(savedSettings) };
-      }
-    } catch (e) {
-      console.warn('Gagal memuat pengaturan:', e);
-    }
-  }
-
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(showToast._timer);
-    showToast._timer = setTimeout(() => t.classList.remove('show'), 1800);
-  }
-
-  function saveToStorage(manual) {
-    try {
-      codeStore[currentLang] = editor ? editor.getValue() : codeStore[currentLang];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(codeStore));
-      if (manual) showToast('✅ Kode berhasil disimpan ke localStorage');
-    } catch (e) {
-      if (e && e.name === 'QuotaExceededError') {
-        showToast('⚠ Penyimpanan penuh! Kode tidak bisa disimpan.');
-      } else {
-        showToast('⚠ Gagal menyimpan kode.');
-      }
-      console.error(e);
-    }
-  }
-
-  function saveSettings() {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch (e) {
-      console.warn('Gagal menyimpan pengaturan:', e);
-    }
-  }
-
-  loadFromStorage();
-
-  // ---------- Apply theme to page ----------
-  function applyPageTheme() {
-    document.body.classList.toggle('dark', settings.theme === 'dark');
-    if (window.monaco) {
-      monaco.editor.setTheme(settings.theme === 'dark' ? 'github-dark' : 'github-light');
-    }
-  }
-
-  require(['vs/editor/editor.main'], function () {
-
-    // GitHub Light theme
-    monaco.editor.defineTheme('github-light', {
-      base: 'vs',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '6a737d', fontStyle: 'italic' },
-        { token: 'keyword', foreground: 'd73a49' },
-        { token: 'string', foreground: '032f62' },
-        { token: 'number', foreground: '005cc5' },
-        { token: 'tag', foreground: '22863a' },
-        { token: 'attribute.name', foreground: '6f42c1' },
-        { token: 'delimiter', foreground: '24292e' },
-        { token: 'identifier', foreground: '24292e' },
-      ],
-      colors: {
-        'editor.background': '#ffffff',
-        'editor.foreground': '#24292e',
-        'editorLineNumber.foreground': '#a0a5aa',
-        'editorCursor.foreground': '#24292e',
-        'editor.lineHighlightBackground': '#f6f8fa',
-        'editorSuggestWidget.background': '#ffffff',
-        'editorSuggestWidget.border': '#d0d7de',
-        'editorSuggestWidget.selectedBackground': '#0366d625',
-      }
-    });
-
-    // GitHub Dark theme
-    monaco.editor.defineTheme('github-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'comment', foreground: '8b949e', fontStyle: 'italic' },
-        { token: 'keyword', foreground: 'ff7b72' },
-        { token: 'string', foreground: 'a5d6ff' },
-        { token: 'number', foreground: '79c0ff' },
-        { token: 'tag', foreground: '7ee787' },
-        { token: 'attribute.name', foreground: 'd2a8ff' },
-        { token: 'delimiter', foreground: 'c9d1d9' },
-        { token: 'identifier', foreground: 'c9d1d9' },
-      ],
-      colors: {
-        'editor.background': '#0d1117',
-        'editor.foreground': '#c9d1d9',
-        'editorLineNumber.foreground': '#484f58',
-        'editorCursor.foreground': '#c9d1d9',
-        'editor.lineHighlightBackground': '#161b22',
-        'editorSuggestWidget.background': '#161b22',
-        'editorSuggestWidget.border': '#30363d',
-        'editorSuggestWidget.selectedBackground': '#1f6feb33',
-      }
-    });
-
-    editor = monaco.editor.create(document.getElementById('editorContainer'), {
-      value: codeStore.html,
-      language: 'html',
-      theme: settings.theme === 'dark' ? 'github-dark' : 'github-light',
-      automaticLayout: true,
-      fontSize: 14,
-      minimap: { enabled: false },
-      quickSuggestions: true,
-      suggestOnTriggerCharacters: true,
-      wordBasedSuggestions: true,
-      tabSize: settings.tabSize,
-      autoClosingTags: true,
-      autoClosingBrackets: 'always',
-      autoClosingQuotes: 'always',
-      autoSurround: 'languageDefined',
-    });
-
-    // Enable Emmet (auto-tag expansion, e.g. "ul>li*3" + Tab) for HTML & CSS
-    if (window.emmetMonaco) {
-      window.emmetMonaco.emmetHTML(monaco);
-      window.emmetMonaco.emmetCSS(monaco);
-    }
-
-    applyPageTheme();
-
-    editor.onDidChangeModelContent(() => {
-      codeStore[currentLang] = editor.getValue();
-      if ($('#autoRunToggle').is(':checked')) debounceRun();
-      debounceAutoSave();
-    });
-
-    // Restore active model for other langs lazily created on tab switch
-    runCode();
-
-    // Drag & drop support directly onto the editor
-    setupDragDrop();
-  });
-
-  // ---------- Debounced run & autosave ----------
-  let runTimer;
-  function debounceRun() {
-    clearTimeout(runTimer);
-    runTimer = setTimeout(runCode, 600);
-  }
-
-  let saveTimer;
-  function debounceAutoSave() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveToStorage(false), 1000);
-  }
-
-  // ---------- Tab switching ----------
-  $('.tab-btn').on('click', function () {
-    const lang = $(this).data('lang');
-    if (lang === currentLang) return;
-
-    codeStore[currentLang] = editor.getValue();
-    currentLang = lang;
-    $('.tab-btn').removeClass('active');
-    $(this).addClass('active');
-
-    const model = monaco.editor.createModel(codeStore[lang], lang);
-    editor.setModel(model);
-  });
-
-  // ---------- Run ----------
-  $('#runBtn').on('click', runCode);
-
-  function runCode() {
-    if (editor) codeStore[currentLang] = editor.getValue();
-
-    const combined = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>${codeStore.css}</style>
-</head>
-<body>
-${codeStore.html}
-<script>
-try {
-${codeStore.javascript}
-} catch (e) {
-  document.body.innerHTML += '<pre style="color:red;background:#ffeef0;padding:10px;border-radius:6px;margin-top:10px;">Error: ' + e.message + '</pre>';
-}
-<\/script>
-</body>
-</html>`;
-
-    document.getElementById('outputFrame').srcdoc = combined;
-  }
-
-  // ---------- Save button ----------
-  $('#saveBtn').on('click', () => saveToStorage(true));
-
-  // ---------- Download per file ----------
-  $('#downloadBtn').on('click', (e) => {
-    e.stopPropagation();
-    $('#downloadMenu').toggleClass('hidden');
-  });
-  $(document).on('click', (e) => {
-    if (!$(e.target).closest('#downloadBtn, #downloadMenu').length) {
-      $('#downloadMenu').addClass('hidden');
-    }
-  });
-
-  const fileMeta = {
-    html: { filename: 'index.html', mime: 'text/html' },
-    css: { filename: 'style.css', mime: 'text/css' },
-    javascript: { filename: 'script.js', mime: 'application/javascript' },
-  };
-
-  $('.download-item').on('click', function () {
-    const lang = $(this).data('lang');
-    if (editor && lang === currentLang) codeStore[lang] = editor.getValue();
-    const meta = fileMeta[lang];
-    const blob = new Blob([codeStore[lang] || ''], { type: meta.mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = meta.filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    $('#downloadMenu').addClass('hidden');
-    showToast(`⬇ ${meta.filename} diunduh`);
-  });
-
-  // ---------- Upload via button ----------
-  $('#uploadBtn').on('click', () => $('#fileInput').trigger('click'));
-  $('#fileInput').on('change', function () {
-    handleFiles(this.files);
-    this.value = '';
-  });
-
-  function extToLang(name) {
-    const lower = name.toLowerCase();
-    if (lower.endsWith('.html') || lower.endsWith('.htm')) return 'html';
-    if (lower.endsWith('.css')) return 'css';
-    if (lower.endsWith('.js')) return 'javascript';
-    return null;
-  }
-
-  function handleFiles(fileList) {
-    const files = Array.from(fileList);
-    if (!files.length) return;
-
-    let loadedCount = 0;
-    files.forEach((file) => {
-      const lang = extToLang(file.name);
-      if (!lang) {
-        showToast(`⚠ Tipe file tidak didukung: ${file.name}`);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        codeStore[lang] = ev.target.result;
-        if (lang === currentLang && editor) {
-          editor.setValue(codeStore[lang]);
-        }
-        loadedCount++;
-        showToast(`📁 ${file.name} dimuat ke tab ${lang.toUpperCase()}`);
-        if ($('#autoRunToggle').is(':checked')) debounceRun();
-        debounceAutoSave();
+      var DEFAULT_CODE = {
+        html: '<div class="wrap">\n  <h1>Halo! 👋</h1>\n  <p>Tempel kode HTML kamu di sini, atau coba Emmet:\n    ketik <code>div.card&gt;h2+p</code> lalu tekan <kbd>Tab</kbd>.</p>\n  <button id="btn">Klik aku</button>\n</div>',
+        css: 'body{\n  margin:0;\n  min-height:100vh;\n  display:flex;\n  align-items:center;\n  justify-content:center;\n  font-family:system-ui,sans-serif;\n  background:#0f172a;\n  color:#e2e8f0;\n}\n.wrap{\n  text-align:center;\n  padding:32px;\n}\nbutton{\n  padding:10px 18px;\n  border:0;\n  border-radius:8px;\n  background:#4f8cff;\n  color:#fff;\n  font-size:14px;\n  cursor:pointer;\n}',
+        javascript: "document.getElementById('btn').addEventListener('click', function(){\n  alert('Preview berjalan real-time!');\n});"
       };
-      reader.readAsText(file);
-    });
-  }
+      var DEFAULT_SETTINGS = { theme: 'dark', tabSize: 2 };
 
-  // ---------- Drag & drop onto editor ----------
-  function setupDragDrop() {
-    const dropZone = document.getElementById('editorContainer');
-
-    ['dragenter', 'dragover'].forEach((evt) => {
-      dropZone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        dropZone.classList.add('drag-active');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach((evt) => {
-      dropZone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (evt === 'dragleave' && e.target !== dropZone) return;
-        dropZone.classList.remove('drag-active');
-      });
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      const dt = e.dataTransfer;
-      if (dt && dt.files && dt.files.length) {
-        handleFiles(dt.files);
+      // ---------- toast ----------
+      function toast(type, message) {
+        var el = document.createElement('div');
+        el.className = 'toast ' + type;
+        el.textContent = message;
+        document.getElementById('toastContainer').appendChild(el);
+        setTimeout(function () {
+          el.style.transition = 'opacity .25s';
+          el.style.opacity = '0';
+          setTimeout(function () { el.remove(); }, 260);
+        }, 2400);
       }
-    });
-  }
 
-  // ---------- Settings modal ----------
-  $('#settingsBtn').on('click', () => {
-    $('#themeSelect').val(settings.theme);
-    $('#tabSizeSelect').val(String(settings.tabSize));
-    $('#settingsModal').addClass('open');
-  });
-  $('#closeSettingsBtn').on('click', () => $('#settingsModal').removeClass('open'));
-  $('#settingsModal').on('click', function (e) {
-    if (e.target === this) $(this).removeClass('open');
-  });
+      function debounce(fn, wait) {
+        var t;
+        return function () {
+          var args = arguments, ctx = this;
+          clearTimeout(t);
+          t = setTimeout(function () { fn.apply(ctx, args); }, wait);
+        };
+      }
 
-  $('#themeSelect').on('change', function () {
-    settings.theme = this.value;
-    applyPageTheme();
-    saveSettings();
-  });
+      // ---------- state ----------
+      var settings = loadSettings();
+      var codeState = loadCode();
+      var autoRunEnabled = true;
+      applyTheme(settings.theme);
 
-  $('#tabSizeSelect').on('change', function () {
-    settings.tabSize = parseInt(this.value, 10);
-    if (editor) editor.updateOptions({ tabSize: settings.tabSize });
-    saveSettings();
-  });
+      function loadSettings() {
+        try {
+          var raw = localStorage.getItem(STORAGE_SETTINGS_KEY);
+          if (!raw) return Object.assign({}, DEFAULT_SETTINGS);
+          var parsed = JSON.parse(raw);
+          return Object.assign({}, DEFAULT_SETTINGS, parsed);
+        } catch (e) { return Object.assign({}, DEFAULT_SETTINGS); }
+      }
+      function loadCode() {
+        try {
+          var raw = localStorage.getItem(STORAGE_CODE_KEY);
+          if (!raw) return Object.assign({}, DEFAULT_CODE);
+          var parsed = JSON.parse(raw);
+          return {
+            html: typeof parsed.html === 'string' ? parsed.html : DEFAULT_CODE.html,
+            css: typeof parsed.css === 'string' ? parsed.css : DEFAULT_CODE.css,
+            javascript: typeof parsed.javascript === 'string' ? parsed.javascript : DEFAULT_CODE.javascript
+          };
+        } catch (e) { return Object.assign({}, DEFAULT_CODE); }
+      }
+      function saveSettings() {
+        try { localStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(settings)); }
+        catch (e) { toast('warning', 'Gagal menyimpan pengaturan.'); }
+      }
+      function saveCode() {
+        if (!models.html) return;
+        try {
+          localStorage.setItem(STORAGE_CODE_KEY, JSON.stringify({
+            html: models.html.getValue(),
+            css: models.css.getValue(),
+            javascript: models.javascript.getValue()
+          }));
+        } catch (e) {
+          if (e && e.name === 'QuotaExceededError') {
+            toast('warning', 'Penyimpanan penuh — auto-save gagal, kode di editor tetap aman. Gunakan Download.');
+          } else {
+            toast('warning', 'Auto-save gagal.');
+          }
+        }
+      }
 
-  // ---------- Resizable splitter ----------
-  const splitter = document.getElementById('splitter');
-  const leftPanel = document.getElementById('leftPanel');
-  const rightPanel = document.getElementById('rightPanel');
-  const container = document.getElementById('splitContainer');
-  let isDragging = false;
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        document.querySelectorAll('[data-theme-value]').forEach(function (el) {
+          el.classList.toggle('selected', el.getAttribute('data-theme-value') === theme);
+        });
+        if (window.monaco && editor) {
+          monaco.editor.setTheme(theme === 'dark' ? 'gh-dark' : 'gh-light');
+        }
+      }
+      function applyTabSizeUI() {
+        document.querySelectorAll('[data-tabsize-value]').forEach(function (el) {
+          el.classList.toggle('selected', el.getAttribute('data-tabsize-value') === String(settings.tabSize));
+        });
+      }
 
-  splitter.addEventListener('mousedown', () => {
-    isDragging = true;
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-  });
+      // ---------- Monaco setup ----------
+      var monaco, editor, models = {};
+      var activeLang = 'html';
 
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const isVertical = window.innerWidth <= 768;
-    const rect = container.getBoundingClientRect();
+      window.MonacoEnvironment = {
+        getWorkerUrl: function () {
+          return 'data:text/javascript;charset=utf-8,' + encodeURIComponent(
+            "self.MonacoEnvironment={baseUrl:'" + MONACO_BASE + "/'};" +
+            "importScripts('" + MONACO_BASE + "/vs/base/worker/workerMain.js');"
+          );
+        }
+      };
 
-    if (!isVertical) {
-      let newLeftWidth = e.clientX - rect.left;
-      const minWidth = 150;
-      const maxWidth = rect.width - minWidth - 6;
-      newLeftWidth = Math.max(minWidth, Math.min(newLeftWidth, maxWidth));
-      leftPanel.style.width = newLeftWidth + 'px';
-      rightPanel.style.width = (rect.width - newLeftWidth - 6) + 'px';
-    } else {
-      let newTopHeight = e.clientY - rect.top;
-      const minHeight = 100;
-      const maxHeight = rect.height - minHeight - 6;
-      newTopHeight = Math.max(minHeight, Math.min(newTopHeight, maxHeight));
-      leftPanel.style.height = newTopHeight + 'px';
-      rightPanel.style.height = (rect.height - newTopHeight - 6) + 'px';
-    }
-    if (editor) editor.layout();
-  });
+      require.config({ paths: { vs: MONACO_BASE + '/vs' } });
+      require(['vs/editor/editor.main'], function () {
+        monaco = window.monaco;
 
-  document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      if (editor) editor.layout();
-    }
-  });
+        monaco.editor.defineTheme('gh-dark', {
+          base: 'vs-dark', inherit: true, rules: [],
+          colors: { 'editor.background': '#0f141b' }
+        });
+        monaco.editor.defineTheme('gh-light', {
+          base: 'vs', inherit: true, rules: [],
+          colors: { 'editor.background': '#ffffff' }
+        });
 
-  splitter.addEventListener('touchstart', () => { isDragging = true; });
-  document.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
-    const touch = e.touches[0];
-    const rect = container.getBoundingClientRect();
-    const isVertical = window.innerWidth <= 768;
+        models.html = monaco.editor.createModel(codeState.html, 'html');
+        models.css = monaco.editor.createModel(codeState.css, 'css');
+        models.javascript = monaco.editor.createModel(codeState.javascript, 'javascript');
 
-    if (!isVertical) {
-      let newLeftWidth = touch.clientX - rect.left;
-      newLeftWidth = Math.max(150, Math.min(newLeftWidth, rect.width - 156));
-      leftPanel.style.width = newLeftWidth + 'px';
-      rightPanel.style.width = (rect.width - newLeftWidth - 6) + 'px';
-    } else {
-      let newTopHeight = touch.clientY - rect.top;
-      newTopHeight = Math.max(100, Math.min(newTopHeight, rect.height - 106));
-      leftPanel.style.height = newTopHeight + 'px';
-      rightPanel.style.height = (rect.height - newTopHeight - 6) + 'px';
-    }
-    if (editor) editor.layout();
-  });
-  document.addEventListener('touchend', () => { isDragging = false; });
+        editor = monaco.editor.create(document.getElementById('editorContainer'), {
+          model: models.html,
+          theme: settings.theme === 'dark' ? 'gh-dark' : 'gh-light',
+          automaticLayout: true,
+          fontSize: 13,
+          minimap: { enabled: false },
+          tabSize: settings.tabSize,
+          scrollBeyondLastLine: false,
+          wordWrap: 'on'
+        });
 
-  // Apply theme immediately on load (before Monaco finishes loading)
-  applyPageTheme();
+        try {
+          var em = window.emmetMonaco || window;
+          if (em.emmetHTML) em.emmetHTML(monaco, ['html']);
+          if (em.emmetCSS) em.emmetCSS(monaco, ['css']);
+        } catch (e) { /* emmet is a progressive enhancement; ignore failures */ }
 
-  // Warn before unload if there might be unsaved autosave pending
-  window.addEventListener('beforeunload', () => {
-    saveToStorage(false);
-  });
-</script>
+        var debouncedSave = debounce(saveCode, 1000);
+        ['html', 'css', 'javascript'].forEach(function (lang) {
+          models[lang].onDidChangeContent(debounce(function () {
+            if (autoRunEnabled) runPreview();
+            debouncedSave();
+          }, 600));
+        });
 
+        runPreview();
+        applyTabSizeUI();
+      });
+
+      // ---------- tabs ----------
+      document.getElementById('tabs').addEventListener('click', function (e) {
+        var btn = e.target.closest('.code-tab');
+        if (!btn || !editor) return;
+        var lang = btn.getAttribute('data-lang');
+        activeLang = lang;
+        document.querySelectorAll('.code-tab').forEach(function (t) { t.classList.toggle('active', t === btn); });
+        editor.setModel(models[lang]);
+        editor.focus();
+      });
+
+      // ---------- preview ----------
+      function buildPreviewDoc() {
+        var html = models.html ? models.html.getValue() : '';
+        var css = models.css ? models.css.getValue() : '';
+        var js = models.javascript ? models.javascript.getValue() : '';
+        var jsSafe = js.replace(/<\/script>/gi, '<\\/script>');
+        return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+          '<style>*{box-sizing:border-box;}html,body{margin:0;}' + css + '</style></head>' +
+          '<body>' + html +
+          '<script>' +
+          'window.addEventListener("error",function(ev){parent.postMessage({__preview_error:(ev.error&&ev.error.message)||ev.message},"*");});' +
+          'try{' + jsSafe + '}catch(err){parent.postMessage({__preview_error:err.message},"*");}' +
+          '<\/script>' +
+          '</body></html>';
+      }
+      function runPreview() {
+        document.getElementById('errorBadge').classList.add('hidden');
+        document.getElementById('previewFrame').srcdoc = buildPreviewDoc();
+      }
+      window.addEventListener('message', function (ev) {
+        if (ev.data && ev.data.__preview_error) {
+          var badge = document.getElementById('errorBadge');
+          badge.classList.remove('hidden');
+          badge.title = ev.data.__preview_error;
+        }
+      });
+
+      // ---------- floating capsule navbar (collapsed <-> expanded, drag, actions) ----------
+      var $navCapsule = $('#navCapsule');
+      var $navPanel = $('#navPanel');
+      var $mainNav = $('#mainNav');
+      var $downloadSubmenu = $('#downloadSubmenu');
+      var $downloadChevron = $('#downloadChevron');
+      var panelOpen = false;
+
+      function closeNavPanel() {
+        if (!panelOpen) return;
+        panelOpen = false;
+        $navPanel.stop(true, true).slideUp(150);
+        $('#navToggleBtn i').removeClass('fa-xmark').addClass('fa-bars');
+        $downloadSubmenu.stop(true, true).slideUp(120);
+        $downloadChevron.removeClass('open');
+      }
+      $('#navToggleBtn').on('click', function (e) {
+        e.stopPropagation();
+        panelOpen = !panelOpen;
+        $navPanel.stop(true, true).slideToggle(160);
+        $(this).find('i').toggleClass('fa-bars fa-xmark');
+        if (!panelOpen) { $downloadSubmenu.stop(true, true).slideUp(120); $downloadChevron.removeClass('open'); }
+      });
+      // close the menu when clicking anywhere outside the navbar
+      $(document).on('click', function (e) {
+        if (!$(e.target).closest('#mainNav').length) closeNavPanel();
+      });
+
+      // Upload
+      document.getElementById('fileInput').addEventListener('change', function (e) {
+        handleFiles(e.target.files);
+        e.target.value = '';
+        closeNavPanel();
+      });
+
+      // Auto-run toggle
+      $('#menuAutoRun').on('click', function () {
+        autoRunEnabled = !autoRunEnabled;
+        $(this).toggleClass('nav-row-active', autoRunEnabled);
+        $('#autoRunIcon').toggleClass('fa-square-check', autoRunEnabled).toggleClass('fa-square', !autoRunEnabled);
+        $('#autoRunState').toggleClass('on', autoRunEnabled).text(autoRunEnabled ? 'ON' : 'OFF');
+        if (autoRunEnabled) runPreview();
+      });
+
+      // Run
+      $('#menuRun').on('click', function () {
+        runPreview();
+        closeNavPanel();
+      });
+
+      // Save
+      $('#menuSave').on('click', function () {
+        saveCode();
+        toast('success', 'Kode tersimpan.');
+        closeNavPanel();
+      });
+      window.addEventListener('beforeunload', saveCode);
+
+      // Download (nested slideToggle submenu)
+      $('#menuDownload').on('click', function (e) {
+        e.stopPropagation();
+        $downloadSubmenu.stop(true, true).slideToggle(140);
+        $downloadChevron.toggleClass('open');
+      });
+      $downloadSubmenu.on('click', 'button[data-file]', function () {
+        var map = { html: ['index.html', models.html], css: ['style.css', models.css], js: ['script.js', models.javascript] };
+        var conf = map[$(this).data('file')];
+        if (!conf || !conf[1]) return;
+        downloadFile(conf[0], conf[1].getValue());
+        closeNavPanel();
+      });
+      function downloadFile(filename, content) {
+        var blob = new Blob([content], { type: 'text/plain' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = filename;
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      // Settings
+      var settingsModal = document.getElementById('settingsModal');
+      $('#menuSettings').on('click', function () {
+        settingsModal.classList.remove('hidden');
+        closeNavPanel();
+      });
+      document.getElementById('closeSettings').addEventListener('click', function () { settingsModal.classList.add('hidden'); });
+      settingsModal.addEventListener('click', function (e) { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
+
+      document.getElementById('themeOptions').addEventListener('click', function (e) {
+        var pill = e.target.closest('[data-theme-value]');
+        if (!pill) return;
+        settings.theme = pill.getAttribute('data-theme-value');
+        applyTheme(settings.theme);
+        saveSettings();
+      });
+      document.getElementById('tabSizeOptions').addEventListener('click', function (e) {
+        var pill = e.target.closest('[data-tabsize-value]');
+        if (!pill) return;
+        settings.tabSize = parseInt(pill.getAttribute('data-tabsize-value'), 10);
+        applyTabSizeUI();
+        if (window.monaco) {
+          ['html', 'css', 'javascript'].forEach(function (lang) {
+            if (models[lang]) models[lang].updateOptions({ tabSize: settings.tabSize });
+          });
+        }
+        saveSettings();
+      });
+
+      // View mode: 'split' (Input & Output berdampingan) | 'input' (editor penuh) | 'output' (preview penuh)
+      var viewMode = 'split';
+      function setViewMode(mode) {
+        viewMode = mode;
+        $('#navInputBtn').toggleClass('active', mode === 'input');
+        $('#navOutputBtn').toggleClass('active', mode === 'output');
+        $('#menuMode').toggleClass('nav-row-active', mode === 'split');
+
+        if (mode === 'split') {
+          splitter.style.display = '';
+          editorPanelEl.style.display = 'flex';
+          previewPanelEl.style.display = 'flex';
+          editorPanelEl.style.width = '50%'; editorPanelEl.style.height = '100%';
+          previewPanelEl.style.width = '50%'; previewPanelEl.style.height = '100%';
+        } else if (mode === 'input') {
+          splitter.style.display = 'none';
+          editorPanelEl.style.display = 'flex';
+          editorPanelEl.style.width = '100%'; editorPanelEl.style.height = '100%';
+          previewPanelEl.style.display = 'none';
+        } else {
+          splitter.style.display = 'none';
+          previewPanelEl.style.display = 'flex';
+          previewPanelEl.style.width = '100%'; previewPanelEl.style.height = '100%';
+          editorPanelEl.style.display = 'none';
+        }
+        // preview tetap merender di latar belakang walau disembunyikan — display:none
+        // tidak menghentikan eksekusi script iframe yang sudah dimuat
+      }
+      $('#navInputBtn').on('click', function () { setViewMode(viewMode === 'input' ? 'split' : 'input'); });
+      $('#navOutputBtn').on('click', function () { setViewMode(viewMode === 'output' ? 'split' : 'output'); });
+      $('#menuMode').on('click', function () { setViewMode('split'); closeNavPanel(); });
+
+      // ---------- upload / drag&drop ----------
+      var extToLang = { html: 'html', htm: 'html', css: 'css', js: 'javascript' };
+      function handleFiles(fileList) {
+        var files = Array.prototype.slice.call(fileList);
+        if (!files.length) return;
+        var loaded = 0;
+        files.forEach(function (file) {
+          var ext = file.name.split('.').pop().toLowerCase();
+          var lang = extToLang[ext];
+          if (!lang) { toast('warning', 'Tipe file tidak didukung: ' + file.name); return; }
+          var reader = new FileReader();
+          reader.onload = function () {
+            if (models[lang]) models[lang].setValue(reader.result);
+            loaded++;
+            if (files.length === 1) {
+              var tabBtn = document.querySelector('.code-tab[data-lang="' + lang + '"]');
+              if (tabBtn) tabBtn.click();
+            }
+            if (loaded === files.length) {
+              toast('success', files.length + ' file dimuat.');
+              runPreview();
+              saveCode();
+            }
+          };
+          reader.readAsText(file);
+        });
+      }
+      var editorPanel = document.getElementById('editorPanel');
+      var dropOverlay = document.getElementById('dropOverlay');
+      var dragCounter = 0;
+      editorPanel.addEventListener('dragenter', function (e) { e.preventDefault(); dragCounter++; dropOverlay.classList.remove('hidden'); });
+      editorPanel.addEventListener('dragover', function (e) { e.preventDefault(); });
+      editorPanel.addEventListener('dragleave', function (e) { e.preventDefault(); dragCounter--; if (dragCounter <= 0) { dragCounter = 0; dropOverlay.classList.add('hidden'); } });
+      editorPanel.addEventListener('drop', function (e) {
+        e.preventDefault(); dragCounter = 0; dropOverlay.classList.add('hidden');
+        if (e.dataTransfer && e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+      });
+
+      // ---------- splitter (resizable, mouse & touch) ----------
+      var splitter = document.getElementById('splitter');
+      var main = document.getElementById('main');
+      var editorPanelEl = document.getElementById('editorPanel');
+      var previewPanelEl = document.getElementById('previewPanel');
+      var dragging = false;
+
+      function isVertical() { return window.innerWidth < 768; }
+
+      splitter.addEventListener('pointerdown', function (e) {
+        dragging = true;
+        splitter.classList.add('dragging');
+        splitter.setPointerCapture(e.pointerId);
+      });
+      splitter.addEventListener('pointermove', function (e) {
+        if (!dragging) return;
+        var rect = main.getBoundingClientRect();
+        var pct;
+        if (isVertical()) {
+          pct = ((e.clientY - rect.top) / rect.height) * 100;
+        } else {
+          pct = ((e.clientX - rect.left) / rect.width) * 100;
+        }
+        pct = Math.min(80, Math.max(20, pct));
+        editorPanelEl.style.width = isVertical() ? '100%' : pct + '%';
+        editorPanelEl.style.height = isVertical() ? pct + '%' : '100%';
+        previewPanelEl.style.width = isVertical() ? '100%' : (100 - pct) + '%';
+        previewPanelEl.style.height = isVertical() ? (100 - pct) + '%' : '100%';
+      });
+      function endDrag(e) {
+        if (!dragging) return;
+        dragging = false;
+        splitter.classList.remove('dragging');
+        try { splitter.releasePointerCapture(e.pointerId); } catch (err) { }
+      }
+      splitter.addEventListener('pointerup', endDrag);
+      splitter.addEventListener('pointercancel', endDrag);
+
+      // ---------- drag the capsule navbar around the screen (jQuery, mouse + touch) ----------
+      (function () {
+        var dragActive = false, offsetX = 0, offsetY = 0;
+
+        function point(e) {
+          var oe = e.originalEvent || e;
+          if (oe.touches && oe.touches.length) return { x: oe.touches[0].clientX, y: oe.touches[0].clientY };
+          if (oe.changedTouches && oe.changedTouches.length) return { x: oe.changedTouches[0].clientX, y: oe.changedTouches[0].clientY };
+          return { x: e.clientX, y: e.clientY };
+        }
+
+        $navCapsule.on('mousedown touchstart', function (e) {
+          dragActive = true;
+          $navCapsule.addClass('dragging');
+          var rect = $mainNav[0].getBoundingClientRect();
+          var p = point(e);
+          offsetX = p.x - rect.left;
+          offsetY = p.y - rect.top;
+          $mainNav.css({ left: rect.left + 'px', top: rect.top + 'px', transform: 'none' });
+          if (e.type === 'mousedown') e.preventDefault();
+        });
+
+        $(document).on('mousemove touchmove', function (e) {
+          if (!dragActive) return;
+          var p = point(e);
+          var navW = $mainNav.outerWidth();
+          var navH = $navCapsule.outerHeight();
+          var x = Math.min(window.innerWidth - navW - 4, Math.max(4, p.x - offsetX));
+          var y = Math.min(window.innerHeight - navH - 4, Math.max(4, p.y - offsetY));
+          $mainNav.css({ left: x + 'px', top: y + 'px' });
+        });
+
+        $(document).on('mouseup touchend touchcancel', function () {
+          if (!dragActive) return;
+          dragActive = false;
+          $navCapsule.removeClass('dragging');
+        });
+
+        // the 7 menu buttons, Input/Output toggles, and the hamburger must never start a drag
+        $('#navToggleBtn, #navInputBtn, #navOutputBtn, #navPanel').on('mousedown touchstart', function (e) { e.stopPropagation(); });
+      })();
+
+    })();
+  </script>
 </body>
+
 </html>
