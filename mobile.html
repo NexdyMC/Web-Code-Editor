@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="id" class="dark h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Web Code Editor | Touch-Optimized IDE</title>
+    
+    <!-- SEO & Icons -->
+    <meta name="description" content="Editor Kode Web Responsif & Optimized untuk Android Mobile dan Desktop. Monaco-like CodeFlask editor dengan live preview & console log.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        editorBg: '#1e1e1e',
+                        editorHeader: '#252526',
+                        editorSidebar: '#333333',
+                        editorBorder: '#2d2d2d',
+                        editorActiveTab: '#1e1e1e',
+                        editorInactiveTab: '#2d2d2d',
+                        accentBlue: '#007acc',
+                        accentHover: '#0062a3'
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'Consolas', 'Monaco', 'monospace'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- PrismJS CDN for CodeFlask syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    
+    <!-- CodeFlask CDN -->
+    <script src="https://unpkg.com/codeflask/build/codeflask.min.js"></script>
+
+    <style>
+        /* Custom VS Code Dark+ Theme for CodeFlask */
+        .codeflask {
+            background: #1e1e1e !important;
+            font-family: 'Fira Code', Consolas, Monaco, monospace !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            border-radius: 0 !important;
+        }
+
+        .codeflask__textarea {
+            caret-color: #aeafad !important;
+            color: transparent !important;
+            font-family: 'Fira Code', Consolas, Monaco, monospace !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            padding: 10px 10px 10px 0 !important;
+            -webkit-tap-highlight-color: rgba(0, 122, 204, 0.2) !important;
+        }
+
+        .codeflask__pre {
+            font-family: 'Fira Code', Consolas, Monaco, monospace !important;
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            padding: 10px 10px 10px 0 !important;
+        }
+
+        .codeflask__lines {
+            background-color: #1e1e1e !important;
+            border-right: 1px solid #2d2d2d !important;
+            color: #858585 !important;
+            font-family: 'Fira Code', Consolas, Monaco, monospace !important;
+            font-size: 13px !important;
+            line-height: 1.6 !important;
+            padding: 10px 8px 10px 0 !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            z-index: 3 !important;
+        }
+
+        .codeflask__line-highlight {
+            background: rgba(255, 255, 255, 0.05) !important;
+        }
+
+        /* Prism VS Code Dark+ Syntax Colors */
+        .token.comment,
+        .token.prolog,
+        .token.doctype,
+        .token.cdata {
+            color: #6A9955 !important;
+            font-style: italic;
+        }
+        .token.punctuation {
+            color: #D4D4D4 !important;
+        }
+        .token.property,
+        .token.tag,
+        .token.boolean,
+        .token.number,
+        .token.constant,
+        .token.symbol,
+        .token.deleted {
+            color: #569CD6 !important;
+        }
+        .token.selector,
+        .token.attr-name,
+        .token.string,
+        .token.char,
+        .token.builtin,
+        .token.inserted {
+            color: #CE9178 !important;
+        }
+        .token.operator,
+        .token.entity,
+        .token.url,
+        .language-css .token.string,
+        .style .token.string {
+            color: #D4D4D4 !important;
+        }
+        .token.atrule,
+        .token.attr-value,
+        .token.keyword {
+            color: #C586C0 !important;
+        }
+        .token.function,
+        .token.class-name {
+            color: #DCDCAA !important;
+        }
+        .token.regex,
+        .token.important,
+        .token.variable {
+            color: #D16969 !important;
+        }
+
+        /* Mobile Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3e3e42;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555555;
+        }
+
+        /* Mobile Keyboard Tool Buttons Scroll Snap */
+        .quick-keys-scroll {
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .quick-keys-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Splitter Resizer Cursor & Touch */
+        .resizer {
+            touch-action: none;
+        }
+        
+        /* Smooth transitions */
+        .tab-btn {
+            transition: all 0.15s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-editorBg text-gray-200 h-full flex flex-col font-sans overflow-hidden select-none">
+
+    <!-- TOP MAIN NAVBAR -->
+    <header class="bg-editorHeader border-b border-editorBorder h-12 flex items-center justify-between px-3 shrink-0">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-2.5">
+            <div class="w-7 h-7 rounded bg-accentBlue flex items-center justify-center text-white font-bold text-sm shadow">
+                <i class="fa-solid fa-code"></i>
+            </div>
+            <div class="flex flex-col">
+                <span class="font-semibold text-sm tracking-wide text-white leading-tight">Mobile Code Editor</span>
+                <span class="text-[10px] text-gray-400 hidden sm:inline leading-none">Touch-Friendly VS Code Dark+ IDE</span>
+            </div>
+        </div>
+
+        <!-- View Mode Switcher (Mobile) & Actions -->
+        <div class="flex items-center space-x-1.5 sm:space-x-2">
+
+            <!-- Mobile Layout Modes (Only visible on screens < 1024px) -->
+            <div class="flex lg:hidden bg-editorBorder p-0.5 rounded-lg border border-gray-700">
+                <button id="btn-mode-split" onclick="setLayoutMode('split')" class="px-2 py-1 text-xs rounded font-medium text-white bg-accentBlue shadow transition" title="Split Screen">
+                    <i class="fa-solid fa-table-columns"></i>
+                </button>
+                <button id="btn-mode-editor" onclick="setLayoutMode('editor')" class="px-2 py-1 text-xs rounded font-medium text-gray-400 hover:text-white transition" title="Full Editor">
+                    <i class="fa-solid fa-code"></i>
+                </button>
+                <button id="btn-mode-preview" onclick="setLayoutMode('preview')" class="px-2 py-1 text-xs rounded font-medium text-gray-400 hover:text-white transition" title="Full Preview">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
+            </div>
+
+            <!-- Auto-Run Switch -->
+            <label class="hidden md:flex items-center space-x-1.5 text-xs text-gray-300 cursor-pointer bg-editorBorder px-2 py-1 rounded border border-gray-700">
+                <input type="checkbox" id="toggle-autorun" checked class="accent-accentBlue rounded w-3.5 h-3.5">
+                <span>Auto Run</span>
+            </label>
+
+            <!-- Manual Run Button -->
+            <button onclick="updatePreview()" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded text-xs font-medium flex items-center space-x-1 transition shadow active:scale-95">
+                <i class="fa-solid fa-play text-[10px]"></i>
+                <span class="hidden sm:inline">Run</span>
+            </button>
+
+            <!-- Save Button -->
+            <button onclick="manualSave()" class="bg-accentBlue hover:bg-accentHover text-white px-2.5 py-1 rounded text-xs font-medium flex items-center space-x-1 transition shadow active:scale-95" title="Ctrl + S / Cmd + S">
+                <i class="fa-solid fa-floppy-disk text-[10px]"></i>
+                <span class="hidden sm:inline">Save</span>
+            </button>
+
+            <!-- More Actions Dropdown / Tools -->
+            <div class="relative">
+                <button id="btn-menu" onclick="toggleMenu()" class="bg-editorBorder hover:bg-gray-700 text-gray-300 w-8 h-8 rounded flex items-center justify-center transition border border-gray-700">
+                    <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                </button>
+
+                <!-- Dropdown Menu -->
+                <div id="dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-editorHeader border border-gray-700 rounded-lg shadow-xl py-1 z-50 text-xs text-gray-200">
+                    <button onclick="downloadStandaloneHTML()" class="w-full text-left px-3 py-2 hover:bg-gray-700 flex items-center space-x-2">
+                        <i class="fa-solid fa-download w-4 text-accentBlue"></i>
+                        <span>Download HTML File</span>
+                    </button>
+                    <button onclick="copyCombinedCode()" class="w-full text-left px-3 py-2 hover:bg-gray-700 flex items-center space-x-2">
+                        <i class="fa-solid fa-copy w-4 text-green-400"></i>
+                        <span>Copy Code</span>
+                    </button>
+                    <button onclick="clearAllCode()" class="w-full text-left px-3 py-2 hover:bg-gray-700 text-red-400 flex items-center space-x-2">
+                        <i class="fa-solid fa-trash w-4"></i>
+                        <span>Reset/Clear Code</span>
+                    </button>
+                    <div class="border-t border-gray-700 my-1"></div>
+                    <div class="px-3 py-1.5 text-[11px] text-gray-400 flex items-center justify-between">
+                        <span>Shortcut Simpan</span>
+                        <kbd class="bg-gray-800 px-1.5 py-0.5 rounded text-[10px] text-gray-300 font-mono">Ctrl+S</kbd>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER (Split Layout) -->
+    <main id="main-container" class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+
+        <!-- EDITOR PANEL -->
+        <section id="editor-panel" class="flex-1 flex flex-col min-h-0 bg-editorBg border-b lg:border-b-0 lg:border-r border-editorBorder">
+            
+            <!-- Language Tabs Bar -->
+            <div class="bg-editorHeader border-b border-editorBorder flex items-center justify-between px-1 h-9 shrink-0 overflow-x-auto">
+                <div class="flex items-center space-x-1">
+                    <button id="tab-html" onclick="switchTab('html')" class="tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 bg-editorBg text-white border-t-2 border-orange-500">
+                        <i class="fa-brands fa-html5 text-orange-500 text-sm"></i>
+                        <span>HTML</span>
+                    </button>
+                    <button id="tab-css" onclick="switchTab('css')" class="tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 text-gray-400 hover:text-gray-200 border-t-2 border-transparent">
+                        <i class="fa-brands fa-css3-alt text-blue-400 text-sm"></i>
+                        <span>CSS</span>
+                    </button>
+                    <button id="tab-js" onclick="switchTab('js')" class="tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 text-gray-400 hover:text-gray-200 border-t-2 border-transparent">
+                        <i class="fa-brands fa-square-js text-yellow-400 text-sm"></i>
+                        <span>JS</span>
+                    </button>
+                </div>
+
+                <!-- Indicator info -->
+                <div class="text-[11px] text-gray-400 px-2 font-mono hidden sm:block">
+                    <span id="lang-indicator">HTML5</span>
+                </div>
+            </div>
+
+            <!-- CodeFlask Containers (One per language for instant switching & state preservation) -->
+            <div class="flex-1 relative overflow-hidden bg-editorBg">
+                <div id="code-container-html" class="absolute inset-0 w-full h-full"></div>
+                <div id="code-container-css" class="absolute inset-0 w-full h-full hidden"></div>
+                <div id="code-container-js" class="absolute inset-0 w-full h-full hidden"></div>
+            </div>
+
+            <!-- MOBILE QUICK KEYBOARD TOOLBAR (Makes typing tags & symbols super fast on phone) -->
+            <div class="bg-[#252526] border-t border-editorBorder py-1 px-1.5 flex items-center space-x-1.5 overflow-x-auto quick-keys-scroll shrink-0">
+                <span class="text-[10px] uppercase font-bold text-gray-500 px-1 shrink-0 select-none">Quick Keys</span>
+                <div class="h-4 w-[1px] bg-gray-700 shrink-0"></div>
+                <button onclick="insertSymbol('\t')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">Tab</button>
+                <button onclick="insertSymbol('<')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">&lt;</button>
+                <button onclick="insertSymbol('>')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">&gt;</button>
+                <button onclick="insertSymbol('/')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">/</button>
+                <button onclick="insertSymbol('=\'\'', -1)" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">=""</button>
+                <button onclick="insertSymbol('{}', -1)" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">{}</button>
+                <button onclick="insertSymbol('()', -1)" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">()</button>
+                <button onclick="insertSymbol('[]', -1)" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">[]</button>
+                <button onclick="insertSymbol(';')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">;</button>
+                <button onclick="insertSymbol(':')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">:</button>
+                <button onclick="insertSymbol('\'\'', -1)" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">''</button>
+                <button onclick="insertSymbol('``', -1)" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">``</button>
+                <button onclick="insertSymbol('+')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">+</button>
+                <button onclick="insertSymbol('-')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">-</button>
+                <button onclick="insertSymbol('$')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">$</button>
+                <button onclick="insertSymbol('=>')" class="px-2.5 py-1 bg-[#333333] hover:bg-gray-600 active:bg-accentBlue text-gray-200 text-xs font-mono rounded shrink-0 shadow-sm border border-gray-700">=&gt;</button>
+            </div>
+
+        </section>
+
+        <!-- RESIZABLE SPLITTER (Desktop & Touch Support) -->
+        <div id="resizer" class="resizer h-2 lg:h-full lg:w-2 bg-editorHeader border-y lg:border-y-0 lg:border-x border-editorBorder flex items-center justify-center cursor-row-resize lg:cursor-col-resize hover:bg-accentBlue transition-colors shrink-0 z-10">
+            <div class="w-8 h-1 lg:w-1 lg:h-8 bg-gray-600 rounded-full"></div>
+        </div>
+
+        <!-- PREVIEW & CONSOLE PANEL -->
+        <section id="preview-panel" class="flex-1 flex flex-col min-h-0 bg-white relative">
+            
+            <!-- Live Preview Header Bar -->
+            <div class="bg-editorHeader border-b border-editorBorder h-9 flex items-center justify-between px-3 text-gray-300 shrink-0">
+                <div class="flex items-center space-x-2 text-xs font-medium">
+                    <span class="flex h-2 w-2 relative">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span>Output Live Preview</span>
+                </div>
+
+                <div class="flex items-center space-x-2 text-xs">
+                    <!-- Console Toggle Button -->
+                    <button onclick="toggleConsole()" class="hover:text-white px-2 py-1 rounded bg-editorBorder border border-gray-700 flex items-center space-x-1.5 transition">
+                        <i class="fa-solid fa-terminal text-yellow-400"></i>
+                        <span>Console</span>
+                        <span id="console-badge" class="bg-yellow-500 text-black font-bold text-[10px] px-1.5 py-0.2 rounded-full hidden">0</span>
+                    </button>
+
+                    <!-- Refresh Preview Button -->
+                    <button onclick="updatePreview()" class="hover:text-white p-1.5 rounded bg-editorBorder border border-gray-700 transition" title="Reload Preview">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Iframe Sandbox Live Preview -->
+            <div class="flex-1 relative bg-white">
+                <iframe id="preview-iframe" class="w-full h-full border-0 bg-white" sandbox="allow-scripts allow-modals allow-forms allow-same-origin"></iframe>
+            </div>
+
+            <!-- MOBILE LIVE CONSOLE LOG DRAWER -->
+            <div id="console-drawer" class="h-36 bg-[#181818] border-t border-gray-800 flex flex-col hidden shrink-0 font-mono text-xs">
+                <div class="bg-[#222222] px-3 py-1.5 flex items-center justify-between border-b border-gray-800 text-gray-300">
+                    <div class="flex items-center space-x-2 font-sans font-semibold text-[11px] uppercase tracking-wider text-gray-400">
+                        <i class="fa-solid fa-terminal text-yellow-400"></i>
+                        <span>JavaScript Console Log</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="clearConsoleLog()" class="hover:text-white text-gray-400 text-xs px-1.5 py-0.5 rounded hover:bg-gray-700" title="Clear Console">
+                            <i class="fa-solid fa-ban"></i> Clear
+                        </button>
+                        <button onclick="toggleConsole()" class="hover:text-white text-gray-400 text-xs px-1.5 py-0.5 rounded hover:bg-gray-700">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="console-output" class="flex-1 p-2 overflow-y-auto space-y-1 text-gray-200">
+                    <div class="text-gray-5-00 italic text-[11px]">Subscribed to console logs & uncaught runtime errors...</div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-notification" class="fixed bottom-12 right-4 bg-gray-900 text-white px-4 py-2.5 rounded-lg border border-gray-700 shadow-2xl flex items-center space-x-2.5 transition-all duration-300 transform translate-y-20 opacity-0 z-50">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-green-400 text-base"></i>
+        <span id="toast-message" class="text-xs font-medium">Notification</span>
+    </div>
+
+    <!-- INITIALIZATION & CORE APPLICATION LOGIC -->
+    <script>
+        // Default Starter Code Boilerplate
+        const DEFAULT_HTML = `<div class="card">
+  <div class="icon">🚀</div>
+  <h2>Mobile Web Code Editor</h2>
+  <p>Selamat datang di Web Code Editor responsif yang nyaman digunakan di HP Android & PC!</p>
+  
+  <div class="counter-box">
+    <button id="btn-count">Klik Saya: <span id="count">0</span></button>
+  </div>
+</div>`;
+
+        const DEFAULT_CSS = `body {
+  margin: 0;
+  padding: 20px;
+  background: linear-gradient(135deg, #0f172a, #1e1e2e);
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 28px;
+  border-radius: 20px;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+h2 {
+  margin: 0 0 10px 0;
+  font-size: 20px;
+  color: #38bdf8;
+}
+
+p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #94a3b8;
+  margin-bottom: 20px;
+}
+
+.counter-box button {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+  transition: transform 0.1s ease;
+}
+
+.counter-box button:active {
+  transform: scale(0.95);
+}`;
+
+        const DEFAULT_JS = `// Live JavaScript Interactive Demo
+let count = 0;
+const btn = document.getElementById('btn-count');
+const countDisplay = document.getElementById('count');
+
+btn.addEventListener('click', () => {
+  count++;
+  countDisplay.textContent = count;
+  console.log('Tombol diklik! Jumlah count saat ini:', count);
+});
+
+console.log('Editor Siap! Jalankan & edit kode kapan saja.');`;
+
+        // App State
+        let currentLang = 'html';
+        let flaskHTML, flaskCSS, flaskJS;
+        let autoRunTimer = null;
+        let consoleCount = 0;
+
+        // Initialize Application on DOM Content Loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSavedCode();
+            initEditors();
+            initResizer();
+            initKeyboardShortcuts();
+            updatePreview();
+        });
+
+        // Initialize CodeFlask Instances
+        function initEditors() {
+            const savedData = getSavedCodeData();
+
+            // HTML CodeFlask
+            flaskHTML = new CodeFlask('#code-container-html', {
+                language: 'html',
+                lineNumbers: true
+            });
+            flaskHTML.updateCode(savedData.html);
+            flaskHTML.onUpdate(() => onCodeChange());
+
+            // CSS CodeFlask
+            flaskCSS = new CodeFlask('#code-container-css', {
+                language: 'css',
+                lineNumbers: true
+            });
+            flaskCSS.updateCode(savedData.css);
+            flaskCSS.onUpdate(() => onCodeChange());
+
+            // JS CodeFlask
+            flaskJS = new CodeFlask('#code-container-js', {
+                language: 'js',
+                lineNumbers: true
+            });
+            flaskJS.updateCode(savedData.js);
+            flaskJS.onUpdate(() => onCodeChange());
+        }
+
+        // Get Active CodeFlask Instance
+        function getActiveFlask() {
+            if (currentLang === 'html') return flaskHTML;
+            if (currentLang === 'css') return flaskCSS;
+            return flaskJS;
+        }
+
+        // Switch Active Language Tab
+        function switchTab(lang) {
+            currentLang = lang;
+
+            // Hide all containers
+            document.getElementById('code-container-html').classList.add('hidden');
+            document.getElementById('code-container-css').classList.add('hidden');
+            document.getElementById('code-container-js').classList.add('hidden');
+
+            // Reset tab button styles
+            ['html', 'css', 'js'].forEach(l => {
+                const btn = document.getElementById(`tab-${l}`);
+                btn.className = "tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 text-gray-400 hover:text-gray-200 border-t-2 border-transparent";
+            });
+
+            // Active Tab UI
+            const activeBtn = document.getElementById(`tab-${lang}`);
+            const activeContainer = document.getElementById(`code-container-${lang}`);
+            const langIndicator = document.getElementById('lang-indicator');
+
+            activeContainer.classList.remove('hidden');
+
+            if (lang === 'html') {
+                activeBtn.className = "tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 bg-editorBg text-white border-t-2 border-orange-500";
+                langIndicator.textContent = "HTML5 Markup";
+            } else if (lang === 'css') {
+                activeBtn.className = "tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 bg-editorBg text-white border-t-2 border-blue-400";
+                langIndicator.textContent = "CSS3 Stylesheet";
+            } else if (lang === 'js') {
+                activeBtn.className = "tab-btn px-3 py-1.5 text-xs font-medium rounded-t flex items-center space-x-1.5 bg-editorBg text-white border-t-2 border-yellow-400";
+                langIndicator.textContent = "JavaScript ES6";
+            }
+        }
+
+        // Handle Realtime Code Editing with Debounce
+        function onCodeChange() {
+            // Auto Save to LocalStorage (debounced)
+            if (autoRunTimer) clearTimeout(autoRunTimer);
+
+            const isAutoRun = document.getElementById('toggle-autorun').checked;
+            autoRunTimer = setTimeout(() => {
+                saveToLocalStorage();
+                if (isAutoRun) {
+                    updatePreview();
+                }
+            }, 600);
+        }
+
+        // Update Live Preview Iframe Content & Intercept Console Logs
+        function updatePreview() {
+            const htmlCode = flaskHTML ? flaskHTML.getCode() : '';
+            const cssCode = flaskCSS ? flaskCSS.getCode() : '';
+            const jsCode = flaskJS ? flaskJS.getCode() : '';
+
+            // Inject Console Interceptor Script into Preview Frame
+            const consoleInterceptorScript = `
+                <script>
+                    (function() {
+                        const sendLog = (type, args) => {
+                            try {
+                                const message = Array.from(args).map(arg => {
+                                    if (typeof arg === 'object') {
+                                        try { return JSON.stringify(arg); } catch(e) { return String(arg); }
+                                    }
+                                    return String(arg);
+                                }).join(' ');
+                                window.parent.postMessage({ type: 'CONSOLE_LOG', logType: type, content: message }, '*');
+                            } catch(err) {}
+                        };
+                        const origLog = console.log;
+                        const origErr = console.error;
+                        const origWarn = console.warn;
+                        const origInfo = console.info;
+
+                        console.log = function(...args) { origLog.apply(console, args); sendLog('log', args); };
+                        console.error = function(...args) { origErr.apply(console, args); sendLog('error', args); };
+                        console.warn = function(...args) { origWarn.apply(console, args); sendLog('warn', args); };
+                        console.info = function(...args) { origInfo.apply(console, args); sendLog('info', args); };
+
+                        window.onerror = function(msg, url, line) {
+                            sendLog('error', ['Uncaught Error: ' + msg + ' (Line ' + line + ')']);
+                        };
+                    })();
+                <\/script>
+            `;
+
+            const fullDocument = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>${cssCode}</style>
+                    ${consoleInterceptorScript}
+                </head>
+                <body>
+                    ${htmlCode}
+                    <script>${jsCode}<\/script>
+                </body>
+                </html>
+            `;
+
+            const iframe = document.getElementById('preview-iframe');
+            iframe.srcdoc = fullDocument;
+        }
+
+        // Listen for Console Logs posted from iframe
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'CONSOLE_LOG') {
+                addConsoleMessage(event.data.logType, event.data.content);
+            }
+        });
+
+        // Add Entry to Mobile Dev Console Drawer
+        function addConsoleMessage(type, content) {
+            const consoleOutput = document.getElementById('console-output');
+            const badge = document.getElementById('console-badge');
+            
+            consoleCount++;
+            badge.textContent = consoleCount;
+            badge.classList.remove('hidden');
+
+            const entry = document.createElement('div');
+            entry.className = "text-[11px] py-0.5 border-b border-gray-800 font-mono flex items-start space-x-2";
+
+            let iconClass = "fa-circle-info text-blue-400";
+            let textColor = "text-gray-200";
+
+            if (type === 'error') {
+                iconClass = "fa-circle-xmark text-red-400";
+                textColor = "text-red-300 bg-red-950/40 p-1 rounded w-full border border-red-900/50";
+            } else if (type === 'warn') {
+                iconClass = "fa-triangle-exclamation text-yellow-400";
+                textColor = "text-yellow-300";
+            } else if (type === 'log') {
+                iconClass = "fa-chevron-right text-gray-500";
+            }
+
+            entry.innerHTML = `<i class="fa-solid ${iconClass} mt-0.5 shrink-0 text-[10px]"></i><span class="${textColor} break-all">${escapeHTML(content)}</span>`;
+            consoleOutput.appendChild(entry);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        function clearConsoleLog() {
+            const consoleOutput = document.getElementById('console-output');
+            consoleOutput.innerHTML = '<div class="text-gray-500 italic text-[11px]">Console dibersihkan.</div>';
+            consoleCount = 0;
+            const badge = document.getElementById('console-badge');
+            badge.textContent = '0';
+            badge.classList.add('hidden');
+        }
+
+        function toggleConsole() {
+            const drawer = document.getElementById('console-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        // Mobile Layout Switcher Mode (Split, Editor Only, Preview Only)
+        function setLayoutMode(mode) {
+            const editorPanel = document.getElementById('editor-panel');
+            const previewPanel = document.getElementById('preview-panel');
+            const resizer = document.getElementById('resizer');
+
+            const btnSplit = document.getElementById('btn-mode-split');
+            const btnEditor = document.getElementById('btn-mode-editor');
+            const btnPreview = document.getElementById('btn-mode-preview');
+
+            // Reset buttons styling
+            [btnSplit, btnEditor, btnPreview].forEach(b => {
+                b.className = "px-2 py-1 text-xs rounded font-medium text-gray-400 hover:text-white transition";
+            });
+
+            if (mode === 'split') {
+                btnSplit.className = "px-2 py-1 text-xs rounded font-medium text-white bg-accentBlue shadow transition";
+                editorPanel.classList.remove('hidden');
+                previewPanel.classList.remove('hidden');
+                resizer.classList.remove('hidden');
+                editorPanel.style.flex = "1";
+                previewPanel.style.flex = "1";
+            } else if (mode === 'editor') {
+                btnEditor.className = "px-2 py-1 text-xs rounded font-medium text-white bg-accentBlue shadow transition";
+                editorPanel.classList.remove('hidden');
+                previewPanel.classList.add('hidden');
+                resizer.classList.add('hidden');
+                editorPanel.style.flex = "1";
+            } else if (mode === 'preview') {
+                btnPreview.className = "px-2 py-1 text-xs rounded font-medium text-white bg-accentBlue shadow transition";
+                editorPanel.classList.add('hidden');
+                previewPanel.classList.remove('hidden');
+                resizer.classList.add('hidden');
+                previewPanel.style.flex = "1";
+            }
+        }
+
+        // Insert Quick Symbol into Current Active CodeFlask Textarea
+        function insertSymbol(symbol, offsetPos = 0) {
+            const containerId = `code-container-${currentLang}`;
+            const textarea = document.querySelector(`#${containerId} .codeflask__textarea`);
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const val = textarea.value;
+
+            // Insert text at current cursor position
+            const newVal = val.substring(0, start) + symbol + val.substring(end);
+            
+            const activeFlask = getActiveFlask();
+            activeFlask.updateCode(newVal);
+
+            // Set cursor position after insertion
+            const newPos = start + symbol.length + offsetPos;
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(newPos, newPos);
+            }, 10);
+        }
+
+        // LocalStorage Helpers
+        function getSavedCodeData() {
+            try {
+                const saved = localStorage.getItem('mobile_web_editor_code_v1');
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (e) {}
+
+            return {
+                html: DEFAULT_HTML,
+                css: DEFAULT_CSS,
+                js: DEFAULT_JS
+            };
+        }
+
+        function saveToLocalStorage() {
+            if (!flaskHTML || !flaskCSS || !flaskJS) return;
+            const data = {
+                html: flaskHTML.getCode(),
+                css: flaskCSS.getCode(),
+                js: flaskJS.getCode()
+            };
+            try {
+                localStorage.setItem('mobile_web_editor_code_v1', JSON.stringify(data));
+            } catch(e) {}
+        }
+
+        function manualSave() {
+            saveToLocalStorage();
+            showToast("Kode Berhasil Disimpan ke LocalStorage! 💾");
+        }
+
+        function loadSavedCode() {
+            // Checked on init
+        }
+
+        function clearAllCode() {
+            if (confirm("Apakah Anda yakin ingin menghapus semua kode & mereset ke awal?")) {
+                localStorage.removeItem('mobile_web_editor_code_v1');
+                flaskHTML.updateCode(DEFAULT_HTML);
+                flaskCSS.updateCode(DEFAULT_CSS);
+                flaskJS.updateCode(DEFAULT_JS);
+                updatePreview();
+                clearConsoleLog();
+                showToast("Kode berhasil di-reset!");
+            }
+            toggleMenu(false);
+        }
+
+        function copyCombinedCode() {
+            const code = `<!-- HTML -->\n${flaskHTML.getCode()}\n\n/* CSS */\n${flaskCSS.getCode()}\n\n// JS\n${flaskJS.getCode()}`;
+            navigator.clipboard.writeText(code).then(() => {
+                showToast("Semua kode disalin ke clipboard!");
+            });
+            toggleMenu(false);
+        }
+
+        function downloadStandaloneHTML() {
+            const htmlCode = flaskHTML.getCode();
+            const cssCode = flaskCSS.getCode();
+            const jsCode = flaskJS.getCode();
+
+            const fullFile = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exported App</title>
+    <style>
+${cssCode}
+    </style>
+</head>
+<body>
+${htmlCode}
+    <script>
+${jsCode}
+    <\/script>
+</body>
+</html>`;
+
+            const blob = new Blob([fullFile], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("File index.html berhasil diunduh!");
+            toggleMenu(false);
+        }
+
+        // Keyboard Shortcuts (Ctrl + S)
+        function initKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    manualSave();
+                }
+            });
+        }
+
+        // Resizer / Splitter Drag Logic (Mouse & Touch)
+        function initResizer() {
+            const resizer = document.getElementById('resizer');
+            const editorPanel = document.getElementById('editor-panel');
+            const previewPanel = document.getElementById('preview-panel');
+            const container = document.getElementById('main-container');
+
+            let isDragging = false;
+
+            const startDragging = (e) => {
+                isDragging = true;
+                document.body.style.userSelect = 'none';
+            };
+
+            const stopDragging = () => {
+                isDragging = false;
+                document.body.style.userSelect = '';
+            };
+
+            const onMove = (e) => {
+                if (!isDragging) return;
+
+                const isDesktop = window.innerWidth >= 1024;
+                const rect = container.getBoundingClientRect();
+
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+
+                if (isDesktop) {
+                    const offset = clientX - rect.left;
+                    const percentage = (offset / rect.width) * 100;
+                    if (percentage > 15 && percentage < 85) {
+                        editorPanel.style.flex = `${percentage} 1 0%`;
+                        previewPanel.style.flex = `${100 - percentage} 1 0%`;
+                    }
+                } else {
+                    const offset = clientY - rect.top;
+                    const percentage = (offset / rect.height) * 100;
+                    if (percentage > 15 && percentage < 85) {
+                        editorPanel.style.flex = `${percentage} 1 0%`;
+                        previewPanel.style.flex = `${100 - percentage} 1 0%`;
+                    }
+                }
+            };
+
+            resizer.addEventListener('mousedown', startDragging);
+            resizer.addEventListener('touchstart', startDragging, { passive: true });
+
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('touchmove', onMove, { passive: true });
+
+            window.addEventListener('mouseup', stopDragging);
+            window.addEventListener('touchend', stopDragging);
+        }
+
+        // Dropdown Menu Toggle
+        function toggleMenu(force) {
+            const menu = document.getElementById('dropdown-menu');
+            if (typeof force === 'boolean') {
+                if (force) menu.classList.remove('hidden');
+                else menu.classList.add('hidden');
+            } else {
+                menu.classList.toggle('hidden');
+            }
+        }
+
+        // Close menu on outside click
+        window.addEventListener('click', (e) => {
+            const menu = document.getElementById('dropdown-menu');
+            const btn = document.getElementById('btn-menu');
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        // Toast Notification System
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast-notification');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = message;
+
+            if (isError) {
+                toastIcon.className = "fa-solid fa-circle-exclamation text-red-400 text-base";
+            } else {
+                toastIcon.className = "fa-solid fa-circle-check text-green-400 text-base";
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 2500);
+        }
+
+        // Utility: Escape HTML for Console Safe Render
+        function escapeHTML(str) {
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
