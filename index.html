@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id" data-theme="dark">
 
 <head>
@@ -639,13 +639,13 @@
       <div class="flex items-center justify-between" style="margin-bottom:14px;">
         <span style="font-weight:700;font-size:14px;"><i class="fa-solid fa-gear"></i> Pengaturan</span>
         <button id="closeSettings"
-          style="background:none;border:none;font-size:16px;color:var(--text-dim);cursor:pointer;">✕</button>
+          style="background:none;border:none;font-size:16px;color:var(--text-dim);cursor:pointer;">âœ•</button>
       </div>
       <div class="setting-group">
         <span class="setting-label">TEMA</span>
         <div class="option-row" id="themeOptions">
-          <div class="option-pill" data-theme-value="light">☀️ Light</div>
-          <div class="option-pill" data-theme-value="dark">🌙 Dark</div>
+          <div class="option-pill" data-theme-value="light">â˜€ï¸ Light</div>
+          <div class="option-pill" data-theme-value="dark">ðŸŒ™ Dark</div>
         </div>
       </div>
       <div class="setting-group" style="margin-bottom:0;">
@@ -665,7 +665,7 @@
   <script src="https://unpkg.com/emmet-monaco-es/dist/emmet-monaco.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/codeflask/build/codeflask.min.js"></script>
   <style>
-    /* ---------- CodeFlask (mobile engine) — selaraskan dengan tema Monaco ---------- */
+    /* ---------- CodeFlask (mobile engine) â€” selaraskan dengan tema Monaco ---------- */
     #editorContainer .codeflask { height: 100%; }
     #editorContainer .codeflask__textarea,
     #editorContainer .codeflask__code,
@@ -695,7 +695,7 @@
       var IS_MOBILE = detectMobile();
 
       var DEFAULT_CODE = {
-        html: '<div class="wrap">\n  <h1>Halo! 👋</h1>\n  <p>Tempel kode HTML kamu di sini, atau coba Emmet:\n    ketik <code>div.card&gt;h2+p</code> lalu tekan <kbd>Tab</kbd>.</p>\n  <button id="btn">Klik aku</button>\n</div>',
+        html: '<div class="wrap">\n  <h1>Halo! ðŸ‘‹</h1>\n  <p>Tempel kode HTML kamu di sini, atau coba Emmet:\n    ketik <code>div.card&gt;h2+p</code> lalu tekan <kbd>Tab</kbd>.</p>\n  <button id="btn">Klik aku</button>\n</div>',
         css: 'body{\n  margin:0;\n  min-height:100vh;\n  display:flex;\n  align-items:center;\n  justify-content:center;\n  font-family:system-ui,sans-serif;\n  background:#0f172a;\n  color:#e2e8f0;\n}\n.wrap{\n  text-align:center;\n  padding:32px;\n}\nbutton{\n  padding:10px 18px;\n  border:0;\n  border-radius:8px;\n  background:#4f8cff;\n  color:#fff;\n  font-size:14px;\n  cursor:pointer;\n}',
         javascript: "document.getElementById('btn').addEventListener('click', function(){\n  alert('Preview berjalan real-time!');\n});"
       };
@@ -790,7 +790,7 @@
           }));
         } catch (e) {
           if (e && e.name === 'QuotaExceededError') {
-            toast('warning', 'Penyimpanan penuh — auto-save gagal, kode di editor tetap aman. Gunakan Download.');
+            toast('warning', 'Penyimpanan penuh â€” auto-save gagal, kode di editor tetap aman. Gunakan Download.');
           } else {
             toast('warning', 'Auto-save gagal.');
           }
@@ -821,7 +821,7 @@
 
       var Editor = (function () {
         var engine = null;         // 'monaco' | 'codeflask'
-        var buffers = {};          // { id: { lang, content } } — sumber kebenaran konten, dipakai kedua engine
+        var buffers = {};          // { id: { lang, content } } â€” sumber kebenaran konten, dipakai kedua engine
         var monacoModels = {};     // { id: monaco.editor.ITextModel }  (hanya dipakai kalau engine === 'monaco')
         var cf = null;             // instance CodeFlask (hanya dipakai kalau engine === 'codeflask')
         var activeId = null;
@@ -869,7 +869,7 @@
             }, 600));
             monacoModels[id] = model;
           }
-          // Engine CodeFlask tidak butuh persiapan apa pun di sini — kontennya cukup
+          // Engine CodeFlask tidak butuh persiapan apa pun di sini â€” kontennya cukup
           // hidup di `buffers`, dan baru dituangkan ke textarea saat switchTo() dipanggil.
         }
 
@@ -1206,7 +1206,7 @@
 
       function initMobileEngine() {
         // CodeFlask: satu textarea fisik, kontennya ditukar (bukan multi-model spt Monaco).
-        // Lihat Editor.switchTo — ia yang menyimpan/menuangkan konten saat pindah tab.
+        // Lihat Editor.switchTo â€” ia yang menyimpan/menuangkan konten saat pindah tab.
         Editor.initCodeFlask(document.getElementById('editorContainer'));
         Editor.registerBuffer('html', 'html', codeState.html);
         Editor.registerBuffer('css', 'css', codeState.css);
@@ -1249,28 +1249,89 @@
         var html = Editor.getValue('html');
         var css = Editor.getValue('css');
         var js = Editor.getValue('javascript');
-        html = injectVirtualFiles(html); // ganti src/href yang menunjuk ke file virtual dgn data: URI
+        html = injectVirtualFiles(html);
         var jsSafe = js.replace(/<\/script>/gi, '<\\/script>');
+        var consoleShim =
+          '(function(){' +
+          'var S=function(t,a){try{var m=Array.prototype.slice.call(a).map(function(x){' +
+          'if(typeof x==="object"){try{return JSON.stringify(x)}catch(e){return String(x)}}return String(x)}).join(" ");' +
+          'parent.postMessage({__console_log:m,__console_type:t},"*")}catch(e){}};' +
+          'var oL=console.log,oE=console.error,oW=console.warn,oI=console.info;' +
+          'console.log=function(){oL.apply(console,arguments);S("log",arguments)};' +
+          'console.error=function(){oE.apply(console,arguments);S("error",arguments)};' +
+          'console.warn=function(){oW.apply(console,arguments);S("warn",arguments)};' +
+          'console.info=function(){oI.apply(console,arguments);S("info",arguments)};' +
+          'window.onerror=function(msg,u,l){S("error",["Uncaught: "+msg+" (Line "+l+")"])};' +
+          '})();';
         return '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-          '<style>*{box-sizing:border-box;}html,body{margin:0;}' + css + '</style></head>' +
+          '<style>*{box-sizing:border-box;}html,body{margin:0;}' + css + '</style>' +
+          '<script>' + consoleShim + '<\\/script></head>' +
           '<body>' + html +
           '<script>' +
-          'window.addEventListener("error",function(ev){parent.postMessage({__preview_error:(ev.error&&ev.error.message)||ev.message},"*");});' +
-          'try{' + jsSafe + '}catch(err){parent.postMessage({__preview_error:err.message},"*");}' +
-          '<\/script>' +
+          'try{' + jsSafe + '}catch(err){parent.postMessage({__preview_error:err.message,__console_log:err.message,__console_type:"error"},"*");}' +
+          '<\\/script>' +
           '</body></html>';
       }
       function runPreview() {
         document.getElementById('errorBadge').classList.add('hidden');
         document.getElementById('previewFrame').srcdoc = buildPreviewDoc();
       }
+      var consoleCount = 0;
       window.addEventListener('message', function (ev) {
         if (ev.data && ev.data.__preview_error) {
           var badge = document.getElementById('errorBadge');
           badge.classList.remove('hidden');
           badge.title = ev.data.__preview_error;
         }
+        if (ev.data && ev.data.__console_log) {
+          addConsoleMessage(ev.data.__console_type || 'log', ev.data.__console_log);
+        }
       });
+
+      // ---------- console drawer ----------
+      function escapeHTML(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+      }
+      function addConsoleMessage(type, content) {
+        var out = document.getElementById('consoleOutput');
+        var badge = document.getElementById('consoleBadge');
+        if (!out || !badge) return;
+        consoleCount++;
+        badge.textContent = consoleCount;
+        badge.classList.remove('hidden');
+        var entry = document.createElement('div');
+        entry.className = 'console-entry console-' + type;
+        var icons = { log: 'fa-chevron-right', error: 'fa-circle-xmark', warn: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+        entry.innerHTML = '<i class="fa-solid ' + (icons[type] || icons.log) + '"></i><span>' + escapeHTML(content) + '</span>';
+        out.appendChild(entry);
+        out.scrollTop = out.scrollHeight;
+      }
+      function toggleConsole() {
+        var drawer = document.getElementById('consoleDrawer');
+        if (drawer) drawer.classList.toggle('hidden');
+      }
+      function clearConsoleLog() {
+        var out = document.getElementById('consoleOutput');
+        if (out) out.innerHTML = '<div style="color:#6b7280;font-style:italic;font-size:11px;">Console dibersihkan.</div>';
+        consoleCount = 0;
+        var badge = document.getElementById('consoleBadge');
+        if (badge) { badge.textContent = '0'; badge.classList.add('hidden'); }
+      }
+
+      // ---------- quick keys (mobile) ----------
+      function insertSymbol(symbol, offsetPos) {
+        if (!IS_MOBILE || !Editor.isReady() || Editor.getEngineName() !== 'codeflask') return;
+        var ta = document.querySelector('#editorContainer .codeflask__textarea');
+        if (!ta) return;
+        offsetPos = offsetPos || 0;
+        var start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
+        var newVal = val.substring(0, start) + symbol + val.substring(end);
+        var activeId = activeLang;
+        Editor.setValue(activeId, newVal);
+        var newPos = start + symbol.length + offsetPos;
+        setTimeout(function () { ta.focus(); ta.setSelectionRange(newPos, newPos); }, 10);
+      }
 
       // ---------- floating capsule navbar (collapsed <-> expanded, drag, actions) ----------
       var $navCapsule = $('#navCapsule');
@@ -1402,7 +1463,7 @@
           previewPanelEl.style.width = '100%'; previewPanelEl.style.height = '100%';
           editorPanelEl.style.display = 'none';
         }
-        // preview tetap merender di latar belakang walau disembunyikan — display:none
+        // preview tetap merender di latar belakang walau disembunyikan â€” display:none
         // tidak menghentikan eksekusi script iframe yang sudah dimuat
       }
       $('#navInputBtn').on('click', function () { setViewMode(viewMode === 'input' ? 'split' : 'input'); });
