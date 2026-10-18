@@ -12,8 +12,13 @@
 html,body{height:100%}
 body{font-family:Inter,system-ui,'Segoe UI',sans-serif;background:var(--bg);color:#cbd5e1;overflow:hidden}
 ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#2a3344;border-radius:6px}::-webkit-scrollbar-track{background:transparent}
-.tab{display:flex;align-items:center;gap:8px;height:100%;padding:0 14px;cursor:pointer;color:#8b95a7;border-right:1px solid var(--bd);border-top:2px solid transparent;white-space:nowrap;font-size:13px;font-weight:500;flex:none}
+#tabs{scrollbar-width:none}
+#tabs::-webkit-scrollbar{display:none}
+.tab{display:flex;align-items:center;gap:8px;height:100%;padding:0 14px;cursor:pointer;color:#8b95a7;border-right:1px solid var(--bd);border-top:2px solid transparent;white-space:nowrap;font-size:13px;font-weight:500;flex:none;user-select:none;transition:background .15s, opacity .15s}
 .tab:hover{background:#111827}.tab.on{background:var(--bg);color:#fff;border-top-color:var(--ac)}
+.tab.dragging{opacity:.4;background:#1e293b}
+.tab.drag-over-left{border-left:2px solid var(--ac)}
+.tab.drag-over-right{border-right:2px solid var(--ac)}
 .tab .x{opacity:0;font-size:11px;padding:3px 5px;border-radius:4px}.tab:hover .x,.tab.on .x{opacity:.7}.tab .x:hover{background:#374151;opacity:1}
 .tb{width:36px;height:36px;display:grid;place-items:center;border-radius:999px;color:#8b95a7}
 .tb:hover{color:#fff;background:rgba(255,255,255,.08)}.tb.on{color:#fff;background:rgba(255,255,255,.12)}
@@ -195,7 +200,7 @@ $(function(){
   function renderTabs(){
     const $t=$('#tabs').empty();
     st.tabs.forEach(t=>{
-      const $e=$('<div class="tab"><i class="fa-brands fa-markdown text-sky-400"></i><span class="nm"></span><button class="x" title="Tutup tab"><i class="fa-solid fa-xmark"></i></button></div>')
+      const $e=$('<div class="tab" draggable="true"><i class="fa-brands fa-markdown text-sky-400 pointer-events-none"></i><span class="nm pointer-events-none"></span><button class="x" title="Tutup tab"><i class="fa-solid fa-xmark"></i></button></div>')
         .data('id',t.id).toggleClass('on',t.id===st.active);
       $e.find('.nm').text(t.name);$t.append($e);
     });
@@ -300,6 +305,69 @@ $(function(){
   }).on('dblclick','.tab',function(){
     const t=st.tabs.find(x=>x.id===$(this).data('id')),n=prompt('Nama tab:',t.name);
     if(n&&n.trim()){t.name=n.trim().slice(0,60);renderTabs();persist();}
+  });
+
+  /* ---------- Drag & Drop Tab Reorder & Horizontal Scroll ---------- */
+  let dragSrcId=null;
+  const $tabsContainer=$('#tabs');
+
+  // Mouse wheel horizontal scrolling
+  $tabsContainer.on('wheel',function(e){
+    const delta = e.originalEvent.deltaY || e.originalEvent.deltaX;
+    if(delta !== 0){
+      e.preventDefault();
+      this.scrollLeft += delta;
+    }
+  });
+
+  // Drag and drop tab reorder
+  $tabsContainer.on('dragstart','.tab',function(e){
+    dragSrcId=$(this).data('id');
+    $(this).addClass('dragging');
+    e.originalEvent.dataTransfer.effectAllowed='move';
+    e.originalEvent.dataTransfer.setData('text/plain',dragSrcId);
+  }).on('dragend','.tab',function(){
+    $(this).removeClass('dragging');
+    $('.tab').removeClass('drag-over-left drag-over-right');
+    dragSrcId=null;
+  }).on('dragover','.tab',function(e){
+    e.preventDefault();
+    e.originalEvent.dataTransfer.dropEffect='move';
+    const targetId=$(this).data('id');
+    if(targetId===dragSrcId)return;
+    const rect=this.getBoundingClientRect();
+    const midX=rect.left + rect.width / 2;
+    if(e.clientX < midX){
+      $(this).addClass('drag-over-left').removeClass('drag-over-right');
+    }else{
+      $(this).addClass('drag-over-right').removeClass('drag-over-left');
+    }
+  }).on('dragleave','.tab',function(){
+    $(this).removeClass('drag-over-left drag-over-right');
+  }).on('drop','.tab',function(e){
+    e.preventDefault();
+    const targetId=$(this).data('id');
+    $(this).removeClass('drag-over-left drag-over-right');
+    if(!dragSrcId || dragSrcId===targetId)return;
+
+    const srcIdx=st.tabs.findIndex(t=>t.id===dragSrcId);
+    let targetIdx=st.tabs.findIndex(t=>t.id===targetId);
+    if(srcIdx===-1 || targetIdx===-1)return;
+
+    const rect=this.getBoundingClientRect();
+    const midX=rect.left + rect.width / 2;
+    const insertAfter=e.clientX >= midX;
+
+    const [movedTab]=st.tabs.splice(srcIdx,1);
+    targetIdx=st.tabs.findIndex(t=>t.id===targetId);
+    if(insertAfter){
+      st.tabs.splice(targetIdx+1,0,movedTab);
+    }else{
+      st.tabs.splice(targetIdx,0,movedTab);
+    }
+
+    renderTabs();
+    persist();
   });
 
   /* ---------- Editor ---------- */
