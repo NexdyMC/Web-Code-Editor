@@ -84,6 +84,8 @@ body{font-family:Inter,system-ui,'Segoe UI',sans-serif;background:var(--bg);colo
         <button class="mi" data-a="new"><i class="fa-solid fa-plus"></i>Tab baru</button>
         <button class="mi" data-a="open"><i class="fa-solid fa-folder-open"></i>Buka file .md</button>
         <button class="mi" data-a="save-storage"><i class="fa-solid fa-floppy-disk text-emerald-400"></i>Simpan Catatan <span class="ml-auto text-slate-500 text-xs">Ctrl+S</span></button>
+        <button class="mi" data-a="export-json"><i class="fa-solid fa-box-archive text-amber-400"></i>Export Cadangan (JSON)</button>
+        <button class="mi" data-a="import-json"><i class="fa-solid fa-file-import text-purple-400"></i>Import Cadangan (JSON)</button>
         <button class="mi" data-a="download-md"><i class="fa-solid fa-download"></i>Unduh .md</button>
         <button class="mi" data-a="html"><i class="fa-solid fa-file-code"></i>Ekspor sebagai HTML</button>
         <button class="mi" data-a="wrap"><i class="fa-solid fa-align-left"></i>Word Wrap <span class="ml-auto text-slate-500 text-xs">Alt+Z</span></button>
@@ -93,6 +95,7 @@ body{font-family:Inter,system-ui,'Segoe UI',sans-serif;background:var(--bg);colo
   </div>
 </div>
 <input id="file" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple class="hidden">
+<input id="jsonFile" type="file" accept=".json,application/json" class="hidden">
 
 <!-- Modal Konfirmasi Hapus Tab (2 Opsi: Hapus / Batal) -->
 <div id="confirmModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -415,11 +418,57 @@ $(function(){
   $('#file').on('change',function(){openFiles(this.files);this.value='';});
   $(window).on('dragover',e=>e.preventDefault()).on('drop',e=>{e.preventDefault();openFiles(e.originalEvent.dataTransfer.files);});
   function saveMd(){const t=cur();download(/\.(md|markdown|txt)$/i.test(t.name)?t.name:t.name+'.md',t.text,'text/markdown');}
+  function exportJson(){
+    const exportData = {
+      app: 'MD Viewer',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      data: st
+    };
+    const dateStr = new Date().toISOString().slice(0, 10);
+    download('catatan-markdown-backup-' + dateStr + '.json', JSON.stringify(exportData, null, 2), 'application/json');
+    showToast('Berhasil mengekspor cadangan JSON! 📦');
+  }
+  function importJson(file){
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try {
+        const parsed = JSON.parse(e.target.result);
+        const importedState = parsed.data || parsed;
+        if(!importedState || !Array.isArray(importedState.tabs) || !importedState.tabs.length){
+          showToast('Format file JSON tidak valid!', true);
+          return;
+        }
+        if(!confirm('Pulihkan ' + importedState.tabs.length + ' tab dari file JSON ini? Tab saat ini akan digantikan.')){
+          return;
+        }
+        st = importedState;
+        if(typeof st.wordWrap === 'undefined') st.wordWrap = false;
+        if(!st.tabs.some(t => t.id === st.active)) st.active = st.tabs[0].id;
+        renderTabs();
+        loadEditor();
+        persist();
+        showToast('Berhasil memulihkan ' + st.tabs.length + ' tab dari JSON! 🚀');
+      } catch(err) {
+        showToast('Gagal membaca file JSON: ' + err.message, true);
+      }
+    };
+    reader.readAsText(file);
+  }
+  $('#jsonFile').on('change', function(){
+    if(this.files && this.files[0]){
+      importJson(this.files[0]);
+    }
+    this.value = '';
+  });
   $('#menu').on('click','[data-a]',function(){
     const a=$(this).data('a');$('#menu').addClass('hidden');
     if(a==='new')newTab();
     else if(a==='open')$('#file').click();
     else if(a==='save-storage')saveToStorage();
+    else if(a==='export-json')exportJson();
+    else if(a==='import-json')$('#jsonFile').click();
     else if(a==='download-md')saveMd();
     else if(a==='html'){
       const t=cur();
